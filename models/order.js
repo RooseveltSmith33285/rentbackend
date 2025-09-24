@@ -1,0 +1,38 @@
+const mongoose=require('mongoose')
+
+const orderSchema=mongoose.Schema({
+    user:{
+type:mongoose.Schema.ObjectId,
+ref:'user'
+    },
+    location:{
+        type:[]
+    },
+    delivery_data:{
+type:String,
+required:true
+    },
+    delivery_time:{
+type:String,
+required:true
+    },
+    items:{
+        type:[{
+            type:mongoose.Schema.ObjectId,
+            ref:'Product'
+        }]
+    },
+    status:{
+        type:String,
+        enum:['active','complete'],
+        default:'active'
+    },
+    subscriptionId:{
+        type:String
+    }
+})
+
+
+const orderModel=mongoose.model('order',orderSchema)
+
+module.exports=orderModel
