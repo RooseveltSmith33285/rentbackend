@@ -29,7 +29,14 @@ required:true
     },
     subscriptionId:{
         type:String
-    }
+    },
+    comboItem: {
+        type: [{
+            plugType: String,
+            plugDescription: String
+        }],
+        default: [] 
+    },
 })
 
 

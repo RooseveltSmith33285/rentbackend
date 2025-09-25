@@ -2,9 +2,10 @@ const cartModel = require('../models/cart')
 const mongoose = require('mongoose')
 
 module.exports.addItemsToCart = async (req, res) => {
-    let { applianceId } = req.body
-    console.log("appliance id is")
-    console.log(applianceId)
+    let { applianceId, comboItem } = req.body;
+    console.log("appliance id is");
+    console.log("Plug type:", comboItem?.plugType);
+    console.log("Appliance ID:", applianceId);
    
     if (!applianceId) {
         return res.status(400).json({
@@ -12,7 +13,6 @@ module.exports.addItemsToCart = async (req, res) => {
         });
     }
 
-   
     if (!mongoose.Types.ObjectId.isValid(applianceId)) {
         return res.status(400).json({
             error: "Invalid applianceId format"
@@ -20,20 +20,33 @@ module.exports.addItemsToCart = async (req, res) => {
     }
 
     try {
-        
+        // Create update object
+        const updateData = {
+            $addToSet: { 
+                "items": applianceId
+            }
+        };
+
+        // Only add to comboItem array if plugType exists
+        if (comboItem && comboItem.plugType) {
+            updateData.$addToSet["comboItem"] = {
+                plugType: comboItem.plugType,
+                plugDescription: comboItem.plugDescription || ''
+            };
+        }
+
         const updatedCart = await cartModel.findOneAndUpdate(
             { user: req.user._id }, 
-            { 
-                $addToSet: { 
-                    "items": applianceId  
-                } 
-            }, 
+            updateData, 
             { 
                 new: true, 
                 upsert: true, 
                 setDefaultsOnInsert: true 
             }
-        ).populate('items'); 
+        ).populate({
+            path: 'items',
+            select: 'name monthly_price photo key_features combo stock_status'
+        }); 
 
         return res.status(200).json({
             message: "Product added to cart successfully",
@@ -41,14 +54,13 @@ module.exports.addItemsToCart = async (req, res) => {
         });
 
     } catch (e) {
-        console.log(e.message);
+        console.log("Error:", e.message);
         return res.status(500).json({
             error: "Facing issue while storing item to cart please try again",
             details: e.message
         });
     }
 }
-
 module.exports.getCartItems=async(req,res)=>{
     try {
         
