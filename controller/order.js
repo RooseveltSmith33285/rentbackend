@@ -39,6 +39,7 @@ paymentMethodId=paymentMethodId.paymentMethodId
             ...data,
             user: req.user._id,
             items:cart.items,
+            comboItem:cart.comboItem,
             subscriptionId,
             status: 'active' 
         };
@@ -49,7 +50,7 @@ paymentMethodId=paymentMethodId.paymentMethodId
         
         await cartModel.updateOne(
             { _id: cart._id }, 
-            { $set: { items: [], updatedAt: new Date() } }
+            { $set: { items: [],comboItem:[], updatedAt: new Date() } }
         );
 
         return res.status(201).json({

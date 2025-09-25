@@ -9,6 +9,13 @@ const productSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  combo:{
+type:Boolean,
+default:false
+  },
+  comboItem:{
+type:String
+  },
   key_features: {
     type: [String], 
     default: []     
