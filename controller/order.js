@@ -112,33 +112,33 @@ const createSubscription = async (items, paymentMethod, customer,draftDay) => {
             });
         }
 
-        // Create prices for each item in the items array
+       
         const pricePromises = items.map(async (item) => {
             const price = await stripe.prices.create({
                 currency: 'usd',
-                unit_amount: item.monthly_price * 100, // Convert to cents
+                unit_amount: item.monthly_price * 100, 
                 recurring: {
                     interval: 'month',
                 },
                 product_data: {
                     name: item.name,
                     metadata: {
-                        product_id: item._id.toString() // Store your internal product ID
+                        product_id: item._id.toString() 
                     }
                 },
             });
             return price.id;
         });
 
-        // Wait for all prices to be created
+ 
         const priceIds = await Promise.all(pricePromises);
 
-        // Create subscription items array
+      
         const subscriptionItems = priceIds.map(priceId => ({
             price: priceId,
         }));
 
-        // Create subscription with all items
+       
         const subscription = await stripe.subscriptions.create({
             customer: customer.customerId,
             items: subscriptionItems,
@@ -152,7 +152,7 @@ const createSubscription = async (items, paymentMethod, customer,draftDay) => {
 
     } catch (e) {
         console.log(e.message);
-        throw e; // Re-throw the error to handle it upstream
+        throw e; 
     }
 }
 

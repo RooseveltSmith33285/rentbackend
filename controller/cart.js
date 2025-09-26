@@ -20,14 +20,14 @@ module.exports.addItemsToCart = async (req, res) => {
     }
 
     try {
-        // Create update object
+   
         const updateData = {
             $addToSet: { 
                 "items": applianceId
             }
         };
 
-        // Only add to comboItem array if plugType exists
+       
         if (comboItem && comboItem.plugType) {
             updateData.$addToSet["comboItem"] = {
                 plugType: comboItem.plugType,
@@ -61,6 +61,8 @@ module.exports.addItemsToCart = async (req, res) => {
         });
     }
 }
+
+
 module.exports.getCartItems=async(req,res)=>{
     try {
         
@@ -82,7 +84,7 @@ module.exports.removeFromCart = async (req, res) => {
     let { applianceId } = req.body;
     console.log(applianceId)
     
-    // Validate input
+
     if (!applianceId) {
         return res.status(400).json({
             error: "applianceId is required"
@@ -92,21 +94,21 @@ module.exports.removeFromCart = async (req, res) => {
 
 
     try {
-        // Remove the item from the user's cart
+ 
         console.log(req.user._id)
         const updatedCart = await cartModel.findOneAndUpdate(
-            { user: req.user._id }, // Find cart for this user
+            { user: req.user._id }, 
             { 
                 $pull: { 
-                    items: applianceId  // Remove the ObjectId from items array
+                    items: applianceId  
                 } 
             },
             { 
-                new: true, // Return the updated document
+                new: true, 
             }
         ).populate('items');
 
-        // Check if cart was found
+       
         if (!updatedCart) {
             return res.status(404).json({
                 error: "Cart not found for this user"
