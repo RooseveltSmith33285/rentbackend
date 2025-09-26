@@ -6,20 +6,20 @@ const cartSchema = mongoose.Schema({
             type: mongoose.Schema.ObjectId,
             ref: 'Product'
         }],
-        default: [] // Set default as empty array
+        default: []
     },
     comboItem: {
         type: [{
             plugType: String,
             plugDescription: String
         }],
-        default: [] // Set default as empty array
+        default: [] 
     },
     user: {
         type: mongoose.Schema.ObjectId,
         ref: 'user'
     }
-})
+},{timestamps:true})
 
 const cartModel = mongoose.model('cart', cartSchema)
 

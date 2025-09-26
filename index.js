@@ -8,6 +8,7 @@ const productRoutes=require('./routes/products')
 const orderRoutes=require('./routes/order')
 const cartRoutes=require('./routes/cart')
 const dashboardRoutes=require('./routes/dashboard')
+const adminRoutes=require('./routes/admin')
 require('dotenv').config();
 app.use(cors())
 app.use(express.json())
@@ -18,6 +19,8 @@ app.use(productRoutes)
 app.use(cartRoutes)
 app.use(orderRoutes)
 app.use(dashboardRoutes)
+app.use(adminRoutes)
+
 
 app.listen(process.env.PORT,()=>{
     console.log(`Listening to port ${process.env.PORT}`)

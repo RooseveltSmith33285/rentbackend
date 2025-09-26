@@ -26,7 +26,13 @@ customerId:{
 billingPaused:{
     type:Boolean,
     default:false
+},
+deletedUser:{
+    type:Boolean,
+    default:false
 }
+},{
+    timestamps:true
 })
 
 

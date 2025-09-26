@@ -1,11 +1,11 @@
 const userModel = require('../models/user');
-const jwt = require('jsonwebtoken'); // Use 'jsonwebtoken' instead of 'json-web-token'
+const jwt = require('jsonwebtoken'); 
 
 module.exports.register = async (req, res) => {
     let { ...data } = req.body;
     
     try {
-        // Check if user already exists
+      
         let alreadyExists = await userModel.findOne({ email: data.email });
         if (alreadyExists) {
             return res.status(400).json({
@@ -13,12 +13,12 @@ module.exports.register = async (req, res) => {
             });
         }
 
-        // Create new user
+      
         let user = await userModel.create(data);
         
-        // Generate JWT token
+      
         let userToken = jwt.sign({ _id: user._id, email: user.email }, process.env.JWT_KEY, {
-            expiresIn: '7d' // Optional: set expiration
+            expiresIn: '7d'
         });
 
         return res.status(201).json({
@@ -38,7 +38,7 @@ module.exports.login = async (req, res) => {
     let { email, password } = req.body;
     
     try {
-        // Find user by email
+    
         let userFound = await userModel.findOne({ email });
         if (!userFound) {
             return res.status(404).json({
@@ -46,11 +46,8 @@ module.exports.login = async (req, res) => {
             });
         }
 
-        // Check password (assuming you have a method to compare passwords)
-        // This assumes your user model has a comparePassword method or similar
         let passwordMatch = await userModel.findOne({password:password});
-        // Alternative if you're storing plain text (NOT RECOMMENDED):
-        // let passwordMatch = userFound.password === password;
+       
         
         if (!passwordMatch) {
             return res.status(401).json({
@@ -58,7 +55,6 @@ module.exports.login = async (req, res) => {
             });
         }
 
-        // Generate JWT token
         let userToken = jwt.sign({ _id: userFound._id, email: userFound.email }, process.env.JWT_KEY, {
            
         });

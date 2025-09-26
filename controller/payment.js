@@ -9,12 +9,12 @@ module.exports.storeBilling = async (req, res) => {
     
  
     try {
-        // Generate payment method token
+       
         let paymentMethodToken = jwt.sign({paymentMethodId:data.paymentMethodId,draftDay:data.draftDay}, process.env.PAYMENT_METHOD_JWT_KEY, {
             
         });
 
-        // Update user with payment method token
+      
         await userModel.findByIdAndUpdate(req.user._id, {
             $set: {
                 paymentMethodToken: paymentMethodToken
@@ -72,10 +72,10 @@ return res.status(200).json({
 
 module.exports.pauseBilling = async (req, res) => {
     try {
-        // Find all active orders for the user
+       
         let orders = await orderModel.find({
             
-            status: { $in: ['active', 'pending'] } // Only pause active subscriptions
+            status: { $in: ['active', 'pending'] }
         });
         orders=orders?.filter(u=>u?.user?.toString()==req?.user?._id?.toString())
 
@@ -85,10 +85,10 @@ module.exports.pauseBilling = async (req, res) => {
             });
         }
 
-        // Use Promise.all to handle multiple async operations properly
+       
         const pausePromises = orders.map(async (order) => {
             try {
-                // Check if subscription exists and is active
+              
                 if (!order.subscriptionId) {
                     console.log(`Order ${order._id} has no subscription ID`);
                     return { orderId: order._id, success: false, error: 'No subscription ID' };
@@ -98,12 +98,12 @@ module.exports.pauseBilling = async (req, res) => {
                     order.subscriptionId,
                     {
                         pause_collection: {
-                            behavior: 'void', // Options: 'keep_as_draft', 'mark_uncollectible', 'void'
+                            behavior: 'void', 
                         },
                     }
                 );
 
-                // Update the order status in your database
+            
                 await orderModel.findByIdAndUpdate(order._id, {
                     status: 'paused',
                     pausedAt: new Date()
@@ -127,10 +127,10 @@ module.exports.pauseBilling = async (req, res) => {
             }
         });
 
-        // Wait for all pause operations to complete
+       
         const results = await Promise.all(pausePromises);
 
-        // Separate successful and failed operations
+       
         const successful = results.filter(result => result.success);
         const failed = results.filter(result => !result.success);
 
@@ -139,7 +139,7 @@ module.exports.pauseBilling = async (req, res) => {
                 billingPaused:true
             }
         })
-        // Return comprehensive response
+ 
         return res.status(200).json({
             message: "Billing pause operation completed",
             totalOrders: orders.length,
@@ -166,7 +166,7 @@ module.exports.pauseBilling = async (req, res) => {
 
 module.exports.resumeBilling = async (req, res) => {
     try {
-        // Find all paused orders for the user
+     
         let orders = await orderModel.find({
             user: req.user._id,
             status: 'paused'
@@ -188,15 +188,15 @@ module.exports.resumeBilling = async (req, res) => {
                 const subscription = await stripe.subscriptions.update(
                     order.subscriptionId,
                     {
-                        pause_collection: '', // Remove pause collection
+                        pause_collection: '',
                     }
                 );
 
-                // Update the order status back to active
+                
                 await orderModel.findByIdAndUpdate(order._id, {
                     status: 'active',
                     resumedAt: new Date(),
-                    $unset: { pausedAt: 1 } // Remove pausedAt field
+                    $unset: { pausedAt: 1 } 
                 });
 
                 await userModel.findByIdAndUpdate(req.user._id,{

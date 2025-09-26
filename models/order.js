@@ -22,10 +22,10 @@ required:true
             ref:'Product'
         }]
     },
-    status:{
-        type:String,
-        enum:['active','complete'],
-        default:'active'
+    status: {
+        type: String,
+        enum: ['active', 'complete', 'paused'], 
+        default: 'active'
     },
     subscriptionId:{
         type:String
@@ -37,7 +37,7 @@ required:true
         }],
         default: [] 
     },
-})
+},{timestamps:true})
 
 
 const orderModel=mongoose.model('order',orderSchema)
