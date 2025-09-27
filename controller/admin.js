@@ -1,6 +1,6 @@
 
 
-const stripe = require('stripe')('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');
+const stripe = require('stripe')(process.env.STRIPE_LIVE);
 
 let {cloudinaryUploadImage}=require('../middleware/cloudinary')
 const fs=require('fs')

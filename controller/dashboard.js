@@ -1,7 +1,7 @@
 const ordersModel = require('../models/order')
 const userModel = require('../models/user')
 const jwt = require('jsonwebtoken')
-const stripe = require('stripe')('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');
+const stripe = require('stripe')(process.env.STRIPE_LIVE);
 
 
 const cache = new Map();
