@@ -1,11 +1,11 @@
 const orderModel = require('../models/order');
 const userModel = require('../models/user');
 const jwt = require('jsonwebtoken');
-const stripe = require('stripe')(process.env.STRIPE_LIVE);
+
 
 module.exports.storeBilling = async (req, res) => {
     const { ...data } = req.body;
-   
+    const stripe = require('stripe')(process.env.STRIPE_LIVE);   
     
  
     try {
@@ -35,6 +35,7 @@ module.exports.storeBilling = async (req, res) => {
 
 
 module.exports.updatePaymentMethod=async(req,res)=>{
+    const stripe = require('stripe')(process.env.STRIPE_LIVE);
     let user=await userModel.findOne({_id:req.user._id})
     const {paymentMethodId}=req.body;
     
@@ -72,6 +73,7 @@ return res.status(200).json({
 
 module.exports.pauseBilling = async (req, res) => {
     try {
+        const stripe = require('stripe')(process.env.STRIPE_LIVE);
        
         let orders = await orderModel.find({
             
@@ -167,6 +169,7 @@ module.exports.pauseBilling = async (req, res) => {
 
 module.exports.resumeBilling = async (req, res) => {
     try {
+        const stripe = require('stripe')(process.env.STRIPE_LIVE);
      
         let orders = await orderModel.find({
             status: 'paused'

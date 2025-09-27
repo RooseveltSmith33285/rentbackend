@@ -1,12 +1,12 @@
 const cartModel = require('../models/cart');
 const orderModel = require('../models/order');
 const userModel = require('../models/user');
-const stripe = require('stripe')(process.env.STRIPE_LIVE);
+
 
 const jwt=require('jsonwebtoken')
 module.exports.createOrder = async (req, res) => {
     const { ...data } = req.body;
-    
+    const stripe = require('stripe')(process.env.STRIPE_LIVE);
     
     try {
     let user=await userModel.findOne({_id:req.user._id})
@@ -80,7 +80,7 @@ paymentMethodId=paymentMethodId.paymentMethodId
 
 const createSubscription = async (items, paymentMethod, customer,draftDay) => {
     try {
-        
+        const stripe = require('stripe')(process.env.STRIPE_LIVE);
         if(!customer.customerId){
            
             const customertwo = await stripe.customers.create({
@@ -173,6 +173,7 @@ const createSubscription = async (items, paymentMethod, customer,draftDay) => {
 }
 
 module.exports.getOrders = async (req, res) => {
+    const stripe = require('stripe')(process.env.STRIPE_LIVE);
     try {
         const { page = 1, limit = 10, sort = '-createdAt' } = req.query;
         const pageNum = parseInt(page);
@@ -223,6 +224,7 @@ module.exports.getOrders = async (req, res) => {
 
 
 module.exports.getOrderById = async (req, res) => {
+    const stripe = require('stripe')(process.env.STRIPE_LIVE);
     try {
         const { orderId } = req.params;
         

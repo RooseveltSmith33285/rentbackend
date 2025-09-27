@@ -1,7 +1,6 @@
 const ordersModel = require('../models/order')
 const userModel = require('../models/user')
 const jwt = require('jsonwebtoken')
-const stripe = require('stripe')(process.env.STRIPE_LIVE);
 
 
 const cache = new Map();
@@ -26,6 +25,8 @@ const setCachedData = (key, data) => {
 
 module.exports.getDashboardData = async (req, res) => {
   try {
+    const stripe = require('stripe')(process.env.STRIPE_LIVE);
+
     let user=await userModel.findById(req.user._id)
     let orders=await ordersModel.find({})
     orders=orders?.filter(u=>u?.user?.toString()==req?.user?._id?.toString())

@@ -1,6 +1,5 @@
 
 
-const stripe = require('stripe')(process.env.STRIPE_LIVE);
 
 let {cloudinaryUploadImage}=require('../middleware/cloudinary')
 const fs=require('fs')
@@ -101,6 +100,7 @@ return res.status(400).json({
 module.exports.deleteUser=async(req,res)=>{
     let {id}=req.params;
    
+const stripe = require('stripe')(process.env.STRIPE_LIVE);
     try{
         let user=await userModel.findOne({_id:id})
       await userModel.findByIdAndUpdate(id,{
@@ -349,6 +349,8 @@ module.exports.getOrders = async (req, res) => {
 }
 
 module.exports.pauseSubscription = async (req, res) => {
+    
+const stripe = require('stripe')(process.env.STRIPE_LIVE);
     try {
         let {subscriptionId}=req.params
         
@@ -390,6 +392,8 @@ module.exports.pauseSubscription = async (req, res) => {
 
 
 module.exports.unPauseSubscription = async (req, res) => {
+    
+const stripe = require('stripe')(process.env.STRIPE_LIVE);
     try {
         let { subscriptionId } = req.params;
         
