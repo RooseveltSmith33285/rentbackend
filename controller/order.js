@@ -148,6 +148,22 @@ const createSubscription = async (items, paymentMethod, customer,draftDay) => {
             },
         });
 
+      if(items.length>1){
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: 2500,
+            currency: 'usd',
+            customer:customer.customerId,
+            payment_method:paymentMethod
+          });
+          const paymentIntentConfirm = await stripe.paymentIntents.confirm(
+            paymentIntent.id,
+            {
+              payment_method: 'pm_card_visa',
+              return_url: 'https://www.example.com',
+            }
+          );
+      }
+
         return subscription.id;
 
     } catch (e) {

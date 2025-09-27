@@ -22,6 +22,7 @@ module.exports.Auth = async (req, res, next) => {
            
             let user = jwt.verify(token, process.env.JWT_KEY);
             req.user = user;
+           
             next();
         } else {
             return res.status(401).json({

@@ -79,9 +79,10 @@ module.exports.pauseBilling = async (req, res) => {
         });
         orders=orders?.filter(u=>u?.user?.toString()==req?.user?._id?.toString())
 
+
         if (orders.length === 0) {
-            return res.status(404).json({
-                message: "No active subscriptions found to pause"
+            return res.status(400).json({
+                error: "No active subscriptions found to pause"
             });
         }
 
@@ -168,14 +169,14 @@ module.exports.resumeBilling = async (req, res) => {
     try {
      
         let orders = await orderModel.find({
-            user: req.user._id,
             status: 'paused'
         });
+     
         orders=orders?.filter(u=>u?.user?.toString()==req?.user?._id?.toString())
 
         if (orders.length === 0) {
-            return res.status(404).json({
-                message: "No paused subscriptions found to resume"
+            return res.status(400).json({
+                error: "No paused subscriptions found to resume"
             });
         }
 
