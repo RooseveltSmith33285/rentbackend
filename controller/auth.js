@@ -91,6 +91,13 @@ return res.status(200).json({
 module.exports.resetPassword=async(req,res)=>{
     let {email,password}=req.body;
     try{
+
+        let userFound=await userModel.findOne({email})
+        if(!userFound){
+return res.status(400).json({
+    error:"No user found with this email"
+})
+        }
         let user=await userModel.updateOne({email},{
             $set:{
                 password
