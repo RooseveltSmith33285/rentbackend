@@ -87,3 +87,23 @@ return res.status(200).json({
         });
     }
 }
+
+module.exports.resetPassword=async(req,res)=>{
+    let {email,password}=req.body;
+    try{
+        let user=await userModel.updateOne({email},{
+            $set:{
+                password
+            }
+        })
+        return res.status(200).json({
+            message:"Password updated sucessfully"
+        })
+            }catch(e){
+                console.log(e.message);
+                return res.status(500).json({
+                    error: "Facing issue while updating password please try again",
+                    details: e.message
+                });
+            }
+}
