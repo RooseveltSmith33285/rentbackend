@@ -21,6 +21,7 @@ paymentMethodId=paymentMethodId.paymentMethodId
 
      let subscriptionId=await createSubscription(cart.items,paymentMethodId,user,draftDay)
 
+     return
         
         if (!cart) {
             return res.status(404).json({
