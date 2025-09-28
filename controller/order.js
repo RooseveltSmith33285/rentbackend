@@ -161,7 +161,7 @@ const createSubscription = async (items, paymentMethod, customer,draftDay) => {
           const paymentIntentConfirm = await stripe.paymentIntents.confirm(
             paymentIntent.id,
             {
-              payment_method: 'pm_card_visa',
+              payment_method: paymentMethod,
               return_url: 'https://www.example.com',
             }
           );
