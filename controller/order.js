@@ -84,7 +84,9 @@ const createSubscription = async (items, paymentMethod, customer,draftDay) => {
         const stripe = require('stripe')(process.env.STRIPE_LIVE);
         console.log("STRIPE KEY BEING USED IS")
         console.log(process.env.STRIPE_LIVE)
-        if(!customer.customerId){
+        const pm = await stripe.paymentMethods.retrieve(paymentMethod);
+        console.log('PaymentMethod found:', pm.id, pm.type);
+        if(!customer.customerId){   
            
             const customertwo = await stripe.customers.create({
                 name: customer.name,
