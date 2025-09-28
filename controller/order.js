@@ -82,7 +82,7 @@ paymentMethodId=paymentMethodId.paymentMethodId
 
 const createSubscription = async (items, paymentMethod, customer,draftDay) => {
     try {
-        const stripe = require('stripe')(process.env.STRIPE_LIVE);
+        const stripe = require('stripe')("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");
         console.log("STRIPE KEY BEING USED IS")
         console.log(process.env.STRIPE_LIVE)
         console.log("PAYMENT METHOD ID")
