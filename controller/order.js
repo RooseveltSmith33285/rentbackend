@@ -41,7 +41,8 @@ paymentMethodId=paymentMethodId.paymentMethodId
             items:cart.items,
             comboItem:cart.comboItem,
             subscriptionId,
-            status: 'active' 
+            status: 'active',
+            createdAt: new Date(),
         };
 
      
@@ -148,7 +149,7 @@ const createSubscription = async (items, paymentMethod, customer,draftDay) => {
             },
         });
 
-      if(items.length>1){
+      if(items.length==1){
         const paymentIntent = await stripe.paymentIntents.create({
             amount: 2500,
             currency: 'usd',
@@ -222,6 +223,31 @@ module.exports.getOrders = async (req, res) => {
     }
 };
 
+
+
+const mongoose = require('mongoose');
+
+module.exports.getRecentOrder = async (req, res) => {
+    try {
+        let order = await orderModel.findOne({
+            $expr: { $eq: [{ $toString: "$user" }, req.user._id.toString()] }
+        }).sort({ createdAt: -1 });
+        
+        console.log('Order found:', order);
+        
+        return res.status(200).json({
+            success: true,
+            data: order
+        });
+
+    } catch (e) {
+        console.error('Orders fetch error:', e.message);
+        return res.status(500).json({
+            error: "Unable to fetch orders at this time",
+            details: process.env.NODE_ENV === 'development' ? e.message : undefined
+        });
+    }
+};
 
 module.exports.getOrderById = async (req, res) => {
     const stripe = require('stripe')(process.env.STRIPE_LIVE);

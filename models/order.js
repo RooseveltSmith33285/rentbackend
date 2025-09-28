@@ -37,6 +37,9 @@ required:true
         }],
         default: [] 
     },
+    createdAt:{
+        type:Date
+    }
 },{timestamps:true})
 
 

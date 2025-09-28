@@ -25,6 +25,7 @@ const setCachedData = (key, data) => {
 
 module.exports.getDashboardData = async (req, res) => {
   try {
+    console.log("HEY")
     const stripe = require('stripe')(process.env.STRIPE_LIVE);
 
     let user=await userModel.findById(req.user._id)
@@ -47,7 +48,7 @@ return res.status(200).json({
 })
 
   } catch (error) {
-    console.error('Dashboard data fetch error:', error);
+    console.error('Dashboard data fetch error:', error.message);
     
  
     if (error.name === 'CastError') {
