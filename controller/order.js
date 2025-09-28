@@ -89,7 +89,7 @@ const createSubscription = async (items, paymentMethod, customer,draftDay) => {
         const pm = await stripe.paymentMethods.retrieve(paymentMethod);
         console.log('PaymentMethod found:', pm.id, pm.type);
         if(!customer.customerId){   
-           
+           console.log("HERE")
             const customertwo = await stripe.customers.create({
                 name: customer.name,
                 email: customer.email,
@@ -114,12 +114,13 @@ const createSubscription = async (items, paymentMethod, customer,draftDay) => {
                 customerId:customertwo.id
             }
         }else{
+            console.log("ELSE")
             await stripe.paymentMethods.attach(paymentMethod, {
                 customer: customer.customerId,
             });
         }
 
-       
+       return;
         const pricePromises = items.map(async (item) => {
             const price = await stripe.prices.create({
                 currency: 'usd',
