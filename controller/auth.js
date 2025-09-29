@@ -24,7 +24,7 @@ module.exports.register = async (req, res) => {
 
         const mailOptions = {
             from: 'orders@enrichifydata.com',
-            to: 'lemightyeagle@gmail.com',
+            to: 'rentsimple159@gmail.com',
             subject: 'New User Registration - Shipmate',
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
