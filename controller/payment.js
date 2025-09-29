@@ -5,12 +5,11 @@ const jwt = require('jsonwebtoken');
 
 module.exports.storeBilling = async (req, res) => {
     const { ...data } = req.body;
-    const stripe = require('stripe')(process.env.STRIPE_LIVE);   
-    
- 
+let {cardState}=data;
+let {draftDay}=data;
     try {
        
-        let paymentMethodToken = jwt.sign({paymentMethodId:data.paymentMethodId,draftDay:data.draftDay}, process.env.PAYMENT_METHOD_JWT_KEY, {
+        let paymentMethodToken = jwt.sign({paymentMethodId:cardState,draftDay:draftDay}, process.env.PAYMENT_METHOD_JWT_KEY, {
             
         });
 
