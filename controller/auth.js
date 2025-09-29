@@ -70,25 +70,11 @@ module.exports.register = async (req, res) => {
                   </table>
           
                   <!-- Action Required -->
-                  <div style="margin-top: 30px; padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
-                    <h4 style="margin: 0 0 10px 0; color: #856404;">
-                      ⚠️ Action May Be Required
-                    </h4>
-                    <p style="margin: 0; color: #856404; font-size: 14px;">
-                      Please review this new registration and verify the user details. You may need to activate the account or send a welcome message.
-                    </p>
-                  </div>
+                
+                 
           
-                  <!-- Quick Actions -->
-                  <h3 style="color: #2c3e50; border-bottom: 2px solid #e74c3c; padding-bottom: 10px; margin-top: 35px;">
-                    Quick Actions
-                  </h3>
-                  
-                  <div style="margin-top: 20px;">
-                    <a href="#" style="display: inline-block; padding: 12px 24px; background-color: #27ae60; color: #ffffff; text-decoration: none; border-radius: 4px; margin-right: 10px; margin-bottom: 10px;">Approve User</a>
-                    <a href="#" style="display: inline-block; padding: 12px 24px; background-color: #3498db; color: #ffffff; text-decoration: none; border-radius: 4px; margin-right: 10px; margin-bottom: 10px;">View Profile</a>
-                    <a href="#" style="display: inline-block; padding: 12px 24px; background-color: #95a5a6; color: #ffffff; text-decoration: none; border-radius: 4px; margin-bottom: 10px;">Contact User</a>
-                  </div>
+                
+                 
                 </div>
           
                 <!-- Footer -->
