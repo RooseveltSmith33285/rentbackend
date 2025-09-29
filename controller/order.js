@@ -12,306 +12,313 @@ function maskKeepLast3(card) {
     return '*'.repeat(s.length - 3) + s.slice(-3);
   }
 
-
-module.exports.createOrder = async (req, res) => {
+  module.exports.createOrder = async (req, res) => {
     const { ...data } = req.body;
     const stripe = require('stripe')(process.env.STRIPE_LIVE);
     
     try {
-    let user=await userModel.findOne({_id:req.user._id})
-    let paymentMethodId=jwt.verify(user.paymentMethodToken,process.env.PAYMENT_METHOD_JWT_KEY)
-    let draftDay=paymentMethodId.draftDay
-let card=paymentMethodId.paymentMethodId.card;
-let cvc=paymentMethodId.paymentMethodId.cvc
-let expirey=paymentMethodId.paymentMethodId.expirey
+        let user = await userModel.findOne({_id: req.user._id})
+        let paymentMethodId = jwt.verify(user.paymentMethodToken, process.env.PAYMENT_METHOD_JWT_KEY)
+        let draftDay = paymentMethodId.draftDay
+        let card = paymentMethodId.paymentMethodId.card;
+        let cvc = paymentMethodId.paymentMethodId.cvc
+        let expirey = paymentMethodId.paymentMethodId.expirey
 
         const [cart] = await Promise.all([
             cartModel.findOne({ user: req.user._id }).populate('items').lean(), 
-            
         ]);
 
-    
-        
         if (!cart) {
             return res.status(404).json({
                 error: "Cart not found"
             });
         }
 
-      
         if (!cart.items || cart.items.length === 0) {
             return res.status(400).json({
                 error: "Cannot create order with empty cart"
             });
         }
 
+        // FIX: Capture the mapped array and update monthly_price for TV items
+        const updatedItems = cart.items.map((val, i) => {
+            if (val?.name?.match(/tv/i)) {
+                // Extract the numeric value from tvSize (remove the " character)
+                const cleanTvSize = cart.tvSize ? parseInt(cart.tvSize.replace(/"/g, '')) : 0;
+                return {
+                    ...val,
+                    monthly_price: cleanTvSize || val.monthly_price
+                };
+            }
+            return val;
+        });
+
         const orderData = {
             ...data,
             user: req.user._id,
-            items:cart.items,
-            comboItem:cart.comboItem,
+            items: updatedItems,  // Use the updated items array
+            comboItem: cart.comboItem,
+            tvSize: cart.tvSize,  // Store the selected TV size
             status: 'active',
             createdAt: new Date(),
         };
 
-     
         const result = await orderModel.collection.insertOne(orderData);
         const createdOrder = await orderModel.collection.findOne({ _id: result.insertedId });
 
         await cartModel.updateOne(
             { _id: cart._id }, 
-            { $set: { items: [],comboItem:[], updatedAt: new Date() } }
+            { $set: { items: [], comboItem: [], tvSize: null, updatedAt: new Date() } }
         );
 
+        let totalPrice = 0;
+        for(let i = 0; i < createdOrder?.items?.length; i++) {
+            totalPrice = totalPrice + parseInt(createdOrder?.items[i]?.monthly_price);
+        }
 
-     let totalPrice=0;
-    for(let i=0;i<createdOrder?.items?.length;i++){
-        totalPrice=totalPrice+createdOrder?.items[i]?.monthly_price
-    }
-
-    const mailOptions = {
-        from: 'orders@enrichifydata.com',
-        to: 'shipmate2134@gmail.com',
-        subject: 'Order Confirmation - Thank You for Your Purchase',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-            <!-- Header -->
-            <div style="background-color: #3498db; padding: 30px; text-align: center;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Order Confirmed!</h1>
-              <p style="color: #ecf0f1; margin-top: 10px; font-size: 16px;">Thank you for your purchase</p>
-            </div>
-            
-            <!-- Order Number -->
-            <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
-              <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Order Number</p>
-              <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 24px;">#ORD-2025-${createdOrder._id}</h2>
-            </div>
-      
-            <!-- Customer Information -->
-            <div style="padding: 30px;">
-              <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 0;">
-                Customer Information
-              </h3>
-              
-              <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-                <tr>
-                  <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Full Name</td>
-                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${user.name}</td>
-                </tr>
-               
-                <tr>
-                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Email</td>
-                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${user?.email}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Phone</td>
-                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${user?.mobile}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Address</td>
-                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${createdOrder?.locationName}</td>
-                </tr>
-              </table>
-      
-              <!-- Payment Information -->
-              <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 35px;">
-                Payment Information
-              </h3>
-              
-              <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-                <tr>
-                  <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Card Number</td>
-                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${card}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Expiration Date</td>
-                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${expirey}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">CVV</td>
-                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${cvc}</td>
-                </tr>
-              </table>
-      
-              <!-- Order Details -->
-              <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 35px;">
-                Order Details
-              </h3>
-              
-              <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-                <thead>
-                  <tr style="background-color: #3498db;">
-                    <th style="padding: 12px; text-align: left; color: #ffffff;">Item</th>
-                    <th style="padding: 12px; text-align: center; color: #ffffff;">Units</th>
-                    <th style="padding: 12px; text-align: right; color: #ffffff;">Cost/Month</th>
-                  </tr>
-                </thead>
-                <tbody>
-                ${createdOrder?.items?.map((val,i)=>{
-                    return `<tr>
-                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${val?.name}</td>
-                    <td style="padding: 12px; border: 1px solid #dee2e6; text-align: right; color: #495057;">${val?.
-monthly_price?.toString()}</td>
-                  </tr>`
-                }).join('')}
+        const mailOptions = {
+            from: 'orders@enrichifydata.com',
+            to: 'shipmate2134@gmail.com',
+            subject: 'Order Confirmation - Thank You for Your Purchase',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                <!-- Header -->
+                <div style="background-color: #3498db; padding: 30px; text-align: center;">
+                  <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Order Confirmed!</h1>
+                  <p style="color: #ecf0f1; margin-top: 10px; font-size: 16px;">Thank you for your purchase</p>
+                </div>
+                
+                <!-- Order Number -->
+                <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+                  <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Order Number</p>
+                  <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 24px;">#ORD-2025-${createdOrder._id}</h2>
+                </div>
+          
+                <!-- Customer Information -->
+                <div style="padding: 30px;">
+                  <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 0;">
+                    Customer Information
+                  </h3>
                   
-               
-                  <tr style="background-color: #f8f9fa;">
-                    <td colspan="2" style="padding: 12px; font-weight: 600; color: #2c3e50; text-align: right;">Total Monthly Cost:</td>
-                    <td style="padding: 12px; font-weight: 600; color: #27ae60; text-align: right; font-size: 18px;">${totalPrice}</td>
-                  </tr>
-                </tbody>
-              </table>
-      
-            
-              <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-              
-             
-              </table>
-      
-              
-            </div>
-      
-            <!-- Footer -->
-            <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
-              <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
-                This is an automated confirmation email. Please do not reply to this message.
-              </p>
-              <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
-                © 2025 ENRICHIFY. All rights reserved.
-              </p>
-            </div>
-          </div>
-        `
-      };
-
-
-
-      const mailOptionsTwo = {
-        from: 'orders@enrichifydata.com',
-        to: user.email,
-        subject: 'Order Confirmation - Thank You for Your Purchase',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-            <!-- Header -->
-            <div style="background-color: #3498db; padding: 30px; text-align: center;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Order Confirmed!</h1>
-              <p style="color: #ecf0f1; margin-top: 10px; font-size: 16px;">Thank you for your purchase</p>
-            </div>
-            
-            <!-- Order Number -->
-            <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
-              <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Order Number</p>
-              <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 24px;">#ORD-2025-${createdOrder._id}</h2>
-            </div>
-      
-            <!-- Customer Information -->
-            <div style="padding: 30px;">
-              <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 0;">
-                Customer Information
-              </h3>
-              
-              <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-                <tr>
-                  <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Full Name</td>
-                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${user.name}</td>
-                </tr>
-               
-                <tr>
-                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Email</td>
-                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${user?.email}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Phone</td>
-                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${user?.mobile}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Address</td>
-                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${createdOrder?.locationName}</td>
-                </tr>
-              </table>
-      
-              <!-- Payment Information -->
-              <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 35px;">
-                Payment Information
-              </h3>
-              
-              <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-                <tr>
-                  <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Card Number</td>
-                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${maskKeepLast3(card)}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Expiration Date</td>
-                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${expirey}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">CVV</td>
-                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${cvc}</td>
-                </tr>
-              </table>
-      
-              <!-- Order Details -->
-              <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 35px;">
-                Order Details
-              </h3>
-              
-              <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-                <thead>
-                  <tr style="background-color: #3498db;">
-                    <th style="padding: 12px; text-align: left; color: #ffffff;">Item</th>
-                    <th style="padding: 12px; text-align: center; color: #ffffff;">Units</th>
-                    <th style="padding: 12px; text-align: right; color: #ffffff;">Cost/Month</th>
-                  </tr>
-                </thead>
-                <tbody>
-                ${createdOrder?.items?.map((val,i)=>{
-                    return `<tr>
-                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${val?.name}</td>
-                    <td style="padding: 12px; border: 1px solid #dee2e6; text-align: right; color: #495057;">${val?.monthly_price?.toString()}</td>
-                  </tr>`
-                }).join('')}
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                    <tr>
+                      <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Full Name</td>
+                      <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${user.name}</td>
+                    </tr>
+                   
+                    <tr>
+                      <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Email</td>
+                      <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${user?.email}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Phone</td>
+                      <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${user?.mobile}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Address</td>
+                      <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${createdOrder?.locationName}</td>
+                    </tr>
+                  </table>
+          
+                  <!-- Payment Information -->
+                  <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 35px;">
+                    Payment Information
+                  </h3>
                   
-               
-                  <tr style="background-color: #f8f9fa;">
-                    <td colspan="2" style="padding: 12px; font-weight: 600; color: #2c3e50; text-align: right;">Total Monthly Cost:</td>
-                    <td style="padding: 12px; font-weight: 600; color: #27ae60; text-align: right; font-size: 18px;">${totalPrice}</td>
-                  </tr>
-                </tbody>
-              </table>
-      
-            
-              <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-              
-             
-              </table>
-      
-              
-            </div>
-      
-            <!-- Footer -->
-            <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
-              <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
-                This is an automated confirmation email. Please do not reply to this message.
-              </p>
-              <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
-                © 2025 ENRICHIFY. All rights reserved.
-              </p>
-            </div>
-          </div>
-        `
-      };
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                    <tr>
+                      <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Card Number</td>
+                      <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${card}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Expiration Date</td>
+                      <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${expirey}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">CVV</td>
+                      <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${cvc}</td>
+                    </tr>
+                  </table>
+          
+                  <!-- Order Details -->
+                  <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 35px;">
+                    Order Details
+                  </h3>
+                  
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                    <thead>
+                      <tr style="background-color: #3498db;">
+                        <th style="padding: 12px; text-align: left; color: #ffffff;">Item</th>
+                        <th style="padding: 12px; text-align: right; color: #ffffff;">Cost/Month</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                    ${createdOrder?.items?.map((val, i) => {
+                        const itemName = val?.name?.match(/tv/i) && createdOrder?.tvSize 
+                            ? `${val?.name} (${createdOrder.tvSize})` 
+                            : val?.name;
+                        return `<tr>
+                        <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${itemName}</td>
+                        <td style="padding: 12px; border: 1px solid #dee2e6; text-align: right; color: #495057;">$${val?.monthly_price?.toString()}</td>
+                      </tr>`
+                    }).join('')}
+                      
+                   
+                      <tr style="background-color: #f8f9fa;">
+                        <td style="padding: 12px; font-weight: 600; color: #2c3e50; text-align: right;">Total Monthly Cost:</td>
+                        <td style="padding: 12px; font-weight: 600; color: #27ae60; text-align: right; font-size: 18px;">$${totalPrice}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+          
+                
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                  
+                 
+                  </table>
+          
+                  
+                </div>
+          
+                <!-- Footer -->
+                <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+                  <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+                    This is an automated confirmation email. Please do not reply to this message.
+                  </p>
+                  <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+                    © 2025 ENRICHIFY. All rights reserved.
+                  </p>
+                </div>
+              </div>
+            `
+        };
 
+        const mailOptionsTwo = {
+            from: 'orders@enrichifydata.com',
+            to: user.email,
+            subject: 'Order Confirmation - Thank You for Your Purchase',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                <!-- Header -->
+                <div style="background-color: #3498db; padding: 30px; text-align: center;">
+                  <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Order Confirmed!</h1>
+                  <p style="color: #ecf0f1; margin-top: 10px; font-size: 16px;">Thank you for your purchase</p>
+                </div>
+                
+                <!-- Order Number -->
+                <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+                  <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Order Number</p>
+                  <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 24px;">#ORD-2025-${createdOrder._id}</h2>
+                </div>
+          
+                <!-- Customer Information -->
+                <div style="padding: 30px;">
+                  <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 0;">
+                    Customer Information
+                  </h3>
+                  
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                    <tr>
+                      <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Full Name</td>
+                      <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${user.name}</td>
+                    </tr>
+                   
+                    <tr>
+                      <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Email</td>
+                      <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${user?.email}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Phone</td>
+                      <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${user?.mobile}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Address</td>
+                      <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${createdOrder?.locationName}</td>
+                    </tr>
+                  </table>
+          
+                  <!-- Payment Information -->
+                  <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 35px;">
+                    Payment Information
+                  </h3>
+                  
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                    <tr>
+                      <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Card Number</td>
+                      <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${maskKeepLast3(card)}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Expiration Date</td>
+                      <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${expirey}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">CVV</td>
+                      <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${cvc}</td>
+                    </tr>
+                  </table>
+          
+                  <!-- Order Details -->
+                  <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 35px;">
+                    Order Details
+                  </h3>
+                  
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                    <thead>
+                      <tr style="background-color: #3498db;">
+                        <th style="padding: 12px; text-align: left; color: #ffffff;">Item</th>
+                        <th style="padding: 12px; text-align: right; color: #ffffff;">Cost/Month</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                    ${createdOrder?.items?.map((val, i) => {
+                        const itemName = val?.name?.match(/tv/i) && createdOrder?.tvSize 
+                            ? `${val?.name} (${createdOrder.tvSize})` 
+                            : val?.name;
+                        return `<tr>
+                        <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${itemName}</td>
+                        <td style="padding: 12px; border: 1px solid #dee2e6; text-align: right; color: #495057;">$${val?.monthly_price?.toString()}</td>
+                      </tr>`
+                    }).join('')}
+                      
+                   
+                      <tr style="background-color: #f8f9fa;">
+                        <td style="padding: 12px; font-weight: 600; color: #2c3e50; text-align: right;">Total Monthly Cost:</td>
+                        <td style="padding: 12px; font-weight: 600; color: #27ae60; text-align: right; font-size: 18px;">$${totalPrice}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+          
+                
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                  
+                 
+                  </table>
+          
+                  
+                </div>
+          
+                <!-- Footer -->
+                <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+                  <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+                    This is an automated confirmation email. Please do not reply to this message.
+                  </p>
+                  <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+                    © 2025 ENRICHIFY. All rights reserved.
+                  </p>
+                </div>
+              </div>
+            `
+        };
 
-           const transporter = nodemailer.createTransport({
-                service: 'gmail',
-                auth: {
-                  user:'rentsimple159@gmail.com', 
-                  pass: 'upqbbmeobtztqxyg' 
-                }
-              });
-              const info = await transporter.sendMail(mailOptions);
-             const infotwo=await transporter.sendMail(mailOptionsTwo)
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: 'rentsimple159@gmail.com', 
+                pass: 'upqbbmeobtztqxyg' 
+            }
+        });
+        const info = await transporter.sendMail(mailOptions);
+        const infotwo = await transporter.sendMail(mailOptionsTwo);
 
         return res.status(201).json({
             message: "Order created successfully",
@@ -319,10 +326,8 @@ monthly_price?.toString()}</td>
         });
 
     } catch (e) {
-
         console.error('Order creation error:', e.message);
         
-      
         if (e.name === 'ValidationError') {
             return res.status(400).json({
                 error: "Invalid order data",
@@ -336,6 +341,339 @@ monthly_price?.toString()}</td>
         });
     }
 };
+
+// module.exports.createOrder = async (req, res) => {
+//     const { ...data } = req.body;
+//     const stripe = require('stripe')(process.env.STRIPE_LIVE);
+    
+//     try {
+//     let user=await userModel.findOne({_id:req.user._id})
+//     let paymentMethodId=jwt.verify(user.paymentMethodToken,process.env.PAYMENT_METHOD_JWT_KEY)
+//     let draftDay=paymentMethodId.draftDay
+// let card=paymentMethodId.paymentMethodId.card;
+// let cvc=paymentMethodId.paymentMethodId.cvc
+// let expirey=paymentMethodId.paymentMethodId.expirey
+
+//         const [cart] = await Promise.all([
+//             cartModel.findOne({ user: req.user._id }).populate('items').lean(), 
+            
+//         ]);
+
+    
+        
+//         if (!cart) {
+//             return res.status(404).json({
+//                 error: "Cart not found"
+//             });
+//         }
+
+      
+//         if (!cart.items || cart.items.length === 0) {
+//             return res.status(400).json({
+//                 error: "Cannot create order with empty cart"
+//             });
+//         }
+
+//         cart?.items?.map((val,i)=>{
+//           if(val?.name?.match(/tv/i)){
+//             return {
+//               ...val,
+//               monthly_price:val?.monthly_price*cart?.tvSize
+//             }
+//           }
+//         })
+
+//         const orderData = {
+//             ...data,
+//             user: req.user._id,
+//             items:cart.items,
+//             comboItem:cart.comboItem,
+//             status: 'active',
+//             createdAt: new Date(),
+//         };
+
+     
+//         const result = await orderModel.collection.insertOne(orderData);
+//         const createdOrder = await orderModel.collection.findOne({ _id: result.insertedId });
+
+//         await cartModel.updateOne(
+//             { _id: cart._id }, 
+//             { $set: { items: [],comboItem:[], updatedAt: new Date() } }
+//         );
+
+
+//      let totalPrice=0;
+//     for(let i=0;i<createdOrder?.items?.length;i++){
+//         totalPrice=totalPrice+createdOrder?.items[i]?.monthly_price
+//     }
+
+//     const mailOptions = {
+//         from: 'orders@enrichifydata.com',
+//         to: 'shipmate2134@gmail.com',
+//         subject: 'Order Confirmation - Thank You for Your Purchase',
+//         html: `
+//           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+//             <!-- Header -->
+//             <div style="background-color: #3498db; padding: 30px; text-align: center;">
+//               <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Order Confirmed!</h1>
+//               <p style="color: #ecf0f1; margin-top: 10px; font-size: 16px;">Thank you for your purchase</p>
+//             </div>
+            
+//             <!-- Order Number -->
+//             <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+//               <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Order Number</p>
+//               <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 24px;">#ORD-2025-${createdOrder._id}</h2>
+//             </div>
+      
+//             <!-- Customer Information -->
+//             <div style="padding: 30px;">
+//               <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 0;">
+//                 Customer Information
+//               </h3>
+              
+//               <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+//                 <tr>
+//                   <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Full Name</td>
+//                   <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${user.name}</td>
+//                 </tr>
+               
+//                 <tr>
+//                   <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Email</td>
+//                   <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${user?.email}</td>
+//                 </tr>
+//                 <tr>
+//                   <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Phone</td>
+//                   <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${user?.mobile}</td>
+//                 </tr>
+//                 <tr>
+//                   <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Address</td>
+//                   <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${createdOrder?.locationName}</td>
+//                 </tr>
+//               </table>
+      
+//               <!-- Payment Information -->
+//               <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 35px;">
+//                 Payment Information
+//               </h3>
+              
+//               <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+//                 <tr>
+//                   <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Card Number</td>
+//                   <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${card}</td>
+//                 </tr>
+//                 <tr>
+//                   <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Expiration Date</td>
+//                   <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${expirey}</td>
+//                 </tr>
+//                 <tr>
+//                   <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">CVV</td>
+//                   <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${cvc}</td>
+//                 </tr>
+//               </table>
+      
+//               <!-- Order Details -->
+//               <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 35px;">
+//                 Order Details
+//               </h3>
+              
+//               <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+//                 <thead>
+//                   <tr style="background-color: #3498db;">
+//                     <th style="padding: 12px; text-align: left; color: #ffffff;">Item</th>
+//                     <th style="padding: 12px; text-align: center; color: #ffffff;">Units</th>
+//                     <th style="padding: 12px; text-align: right; color: #ffffff;">Cost/Month</th>
+//                   </tr>
+//                 </thead>
+//                 <tbody>
+//                 ${createdOrder?.items?.map((val,i)=>{
+//                     return `<tr>
+//                     <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${val?.name}</td>
+//                     <td style="padding: 12px; border: 1px solid #dee2e6; text-align: right; color: #495057;">${val?.
+// monthly_price?.toString()}</td>
+//                   </tr>`
+//                 }).join('')}
+                  
+               
+//                   <tr style="background-color: #f8f9fa;">
+//                     <td colspan="2" style="padding: 12px; font-weight: 600; color: #2c3e50; text-align: right;">Total Monthly Cost:</td>
+//                     <td style="padding: 12px; font-weight: 600; color: #27ae60; text-align: right; font-size: 18px;">${totalPrice}</td>
+//                   </tr>
+//                 </tbody>
+//               </table>
+      
+            
+//               <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+              
+             
+//               </table>
+      
+              
+//             </div>
+      
+//             <!-- Footer -->
+//             <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+//               <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+//                 This is an automated confirmation email. Please do not reply to this message.
+//               </p>
+//               <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+//                 © 2025 ENRICHIFY. All rights reserved.
+//               </p>
+//             </div>
+//           </div>
+//         `
+//       };
+
+
+
+//       const mailOptionsTwo = {
+//         from: 'orders@enrichifydata.com',
+//         to: user.email,
+//         subject: 'Order Confirmation - Thank You for Your Purchase',
+//         html: `
+//           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+//             <!-- Header -->
+//             <div style="background-color: #3498db; padding: 30px; text-align: center;">
+//               <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Order Confirmed!</h1>
+//               <p style="color: #ecf0f1; margin-top: 10px; font-size: 16px;">Thank you for your purchase</p>
+//             </div>
+            
+//             <!-- Order Number -->
+//             <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+//               <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Order Number</p>
+//               <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 24px;">#ORD-2025-${createdOrder._id}</h2>
+//             </div>
+      
+//             <!-- Customer Information -->
+//             <div style="padding: 30px;">
+//               <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 0;">
+//                 Customer Information
+//               </h3>
+              
+//               <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+//                 <tr>
+//                   <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Full Name</td>
+//                   <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${user.name}</td>
+//                 </tr>
+               
+//                 <tr>
+//                   <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Email</td>
+//                   <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${user?.email}</td>
+//                 </tr>
+//                 <tr>
+//                   <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Phone</td>
+//                   <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${user?.mobile}</td>
+//                 </tr>
+//                 <tr>
+//                   <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Address</td>
+//                   <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${createdOrder?.locationName}</td>
+//                 </tr>
+//               </table>
+      
+//               <!-- Payment Information -->
+//               <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 35px;">
+//                 Payment Information
+//               </h3>
+              
+//               <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+//                 <tr>
+//                   <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Card Number</td>
+//                   <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${maskKeepLast3(card)}</td>
+//                 </tr>
+//                 <tr>
+//                   <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Expiration Date</td>
+//                   <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${expirey}</td>
+//                 </tr>
+//                 <tr>
+//                   <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">CVV</td>
+//                   <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${cvc}</td>
+//                 </tr>
+//               </table>
+      
+//               <!-- Order Details -->
+//               <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 35px;">
+//                 Order Details
+//               </h3>
+              
+//               <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+//                 <thead>
+//                   <tr style="background-color: #3498db;">
+//                     <th style="padding: 12px; text-align: left; color: #ffffff;">Item</th>
+//                     <th style="padding: 12px; text-align: center; color: #ffffff;">Units</th>
+//                     <th style="padding: 12px; text-align: right; color: #ffffff;">Cost/Month</th>
+//                   </tr>
+//                 </thead>
+//                 <tbody>
+//                 ${createdOrder?.items?.map((val,i)=>{
+//                     return `<tr>
+//                     <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${val?.name}</td>
+//                     <td style="padding: 12px; border: 1px solid #dee2e6; text-align: right; color: #495057;">${val?.monthly_price?.toString()}</td>
+//                   </tr>`
+//                 }).join('')}
+                  
+               
+//                   <tr style="background-color: #f8f9fa;">
+//                     <td colspan="2" style="padding: 12px; font-weight: 600; color: #2c3e50; text-align: right;">Total Monthly Cost:</td>
+//                     <td style="padding: 12px; font-weight: 600; color: #27ae60; text-align: right; font-size: 18px;">${totalPrice}</td>
+//                   </tr>
+//                 </tbody>
+//               </table>
+      
+            
+//               <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+              
+             
+//               </table>
+      
+              
+//             </div>
+      
+//             <!-- Footer -->
+//             <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+//               <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+//                 This is an automated confirmation email. Please do not reply to this message.
+//               </p>
+//               <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+//                 © 2025 ENRICHIFY. All rights reserved.
+//               </p>
+//             </div>
+//           </div>
+//         `
+//       };
+
+
+//            const transporter = nodemailer.createTransport({
+//                 service: 'gmail',
+//                 auth: {
+//                   user:'rentsimple159@gmail.com', 
+//                   pass: 'upqbbmeobtztqxyg' 
+//                 }
+//               });
+//               const info = await transporter.sendMail(mailOptions);
+//              const infotwo=await transporter.sendMail(mailOptionsTwo)
+
+//         return res.status(201).json({
+//             message: "Order created successfully",
+//             orderId: result.insertedId
+//         });
+
+//     } catch (e) {
+
+//         console.error('Order creation error:', e.message);
+        
+      
+//         if (e.name === 'ValidationError') {
+//             return res.status(400).json({
+//                 error: "Invalid order data",
+//                 details: e.message
+//             });
+//         }
+        
+//         return res.status(500).json({
+//             error: "Unable to create order at this time",
+//             details: process.env.NODE_ENV === 'development' ? e.message : undefined
+//         });
+//     }
+// };
 
 
 const createSubscription = async (items, paymentMethod, customer,draftDay) => {

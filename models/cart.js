@@ -18,7 +18,10 @@ const cartSchema = mongoose.Schema({
     user: {
         type: mongoose.Schema.ObjectId,
         ref: 'user'
-    }
+    },
+    tvSize:{
+type:String
+    },
 },{timestamps:true})
 
 const cartModel = mongoose.model('cart', cartSchema)

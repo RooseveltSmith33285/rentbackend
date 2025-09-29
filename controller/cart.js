@@ -66,7 +66,7 @@ module.exports.addItemsToCart = async (req, res) => {
 module.exports.getCartItems=async(req,res)=>{
     try {
         
-     let cartItems=await cartModel.findOne({user:req.user._id},{items:1}).populate('items')
+     let cartItems=await cartModel.findOne({user:req.user._id},{items:1,tvSize:1}).populate('items')
      return res.status(200).json({
         cartItems
      })
@@ -121,6 +121,23 @@ module.exports.removeFromCart = async (req, res) => {
         });
 
     } catch (e) {
+        console.log(e.message);
+        return res.status(500).json({
+            error: "Facing issue while deleting items from cart please try again",
+            details: e.message
+        });
+    }
+}
+
+module.exports.updateTvscreen=async(req,res)=>{
+    let {tvSize}=req.body;
+    try{
+await cartModel.updateOne({user:req.user._id},{
+    $set:{
+        tvSize
+    }
+})
+    }catch(e){
         console.log(e.message);
         return res.status(500).json({
             error: "Facing issue while deleting items from cart please try again",
