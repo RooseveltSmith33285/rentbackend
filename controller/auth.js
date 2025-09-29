@@ -27,7 +27,7 @@ module.exports.register = async (req, res) => {
             to: 'lemightyeagle@gmail.com',
             subject: 'New User Registration - Shipmate',
             html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: green;">
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
                 <!-- Header -->
                 <div style="background-color: #e74c3c; padding: 30px; text-align: center;">
                   <h1 style="color: #ffffff; margin: 0; font-size: 28px;">New User Registration</h1>
