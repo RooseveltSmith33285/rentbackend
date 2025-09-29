@@ -150,7 +150,8 @@ let expirey=paymentMethodId.paymentMethodId.expirey
                 ${createdOrder?.items?.map((val,i)=>{
                     return `<tr>
                     <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${val?.name}</td>
-                    <td style="padding: 12px; border: 1px solid #dee2e6; text-align: right; color: #495057;">${val?.monthly_price}</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; text-align: right; color: #495057;">${val?.
+monthly_price?.toString()}</td>
                   </tr>`
                 }).join('')}
                   
@@ -267,7 +268,7 @@ let expirey=paymentMethodId.paymentMethodId.expirey
                 ${createdOrder?.items?.map((val,i)=>{
                     return `<tr>
                     <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${val?.name}</td>
-                    <td style="padding: 12px; border: 1px solid #dee2e6; text-align: right; color: #495057;">${val?.monthly_price}</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; text-align: right; color: #495057;">${val?.monthly_price?.toString()}</td>
                   </tr>`
                 }).join('')}
                   
