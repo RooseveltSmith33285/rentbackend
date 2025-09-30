@@ -29,6 +29,9 @@ paymentMethodId=paymentMethodId.paymentMethodId
 
      let subscriptionId=await createSubscription(cart.items,paymentMethodId,user,draftDay)
 
+     return res.status(200).json({
+        message:"Subscription sucesfull"
+     })
    
         if (!cart) {
             return res.status(404).json({
@@ -63,10 +66,10 @@ paymentMethodId=paymentMethodId.paymentMethodId
             { $set: { items: [],comboItem:[], updatedAt: new Date() } }
         );
 
-        return res.status(201).json({
-            message: "Order created successfully",
-            orderId: result.insertedId
-        });
+        // return res.status(201).json({
+        //     message: "Order created successfully",
+        //     orderId: result.insertedId
+        // });
 
     } catch (e) {
 
