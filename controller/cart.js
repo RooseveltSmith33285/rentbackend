@@ -2,95 +2,112 @@ const cartModel = require('../models/cart')
 const mongoose = require('mongoose')
 
 module.exports.addItemsToCart = async (req, res) => {
-    let { applianceId, comboItem } = req.body;
-    console.log("appliance id is");
-    console.log("Plug type:", comboItem?.plugType);
-    console.log("Appliance ID:", applianceId);
+    const { cartItems } = req.body;
+
    
-    if (!applianceId) {
+    if (!cartItems || !Array.isArray(cartItems)) {
         return res.status(400).json({
-            error: "applianceId is required"
+            error: "cartItems array is required"
         });
     }
 
-    if (!mongoose.Types.ObjectId.isValid(applianceId)) {
+    if (cartItems.length === 0) {
         return res.status(400).json({
-            error: "Invalid applianceId format"
+            error: "cartItems array cannot be empty"
         });
     }
 
     try {
-   
+      
+        const applianceIds = [];
+        const comboItems = [];
+
+        for (const item of cartItems) {
+            if (!item._id) {
+                return res.status(400).json({
+                    error: "Each item must have an _id"
+                });
+            }
+
+            if (!mongoose.Types.ObjectId.isValid(item._id)) {
+                return res.status(400).json({
+                    error: `Invalid applianceId format: ${item._id}`
+                });
+            }
+
+            applianceIds.push(item._id);
+
+          
+            if (item.comboItem && item.comboItem.plugType) {
+                comboItems.push({
+                    plugType: item.comboItem.plugType,
+                    plugDescription: item.comboItem.plugDescription || ''
+                });
+            }
+        }
+
         const updateData = {
-            $addToSet: { 
-                "items": applianceId
+            $set: { 
+                items: applianceIds,
+                comboItem: comboItems
             }
         };
 
-       
-        if (comboItem && comboItem.plugType) {
-            updateData.$addToSet["comboItem"] = {
-                plugType: comboItem.plugType,
-                plugDescription: comboItem.plugDescription || ''
-            };
-        }
-
+      
         const updatedCart = await cartModel.findOneAndUpdate(
             { user: req.user._id }, 
             updateData, 
             { 
                 new: true, 
                 upsert: true, 
-                setDefaultsOnInsert: true 
+                setDefaultsOnInsert: true,
+                lean: true 
             }
         ).populate({
             path: 'items',
-            select: 'name monthly_price photo key_features combo stock_status'
+            select: 'name monthly_price photo key_features combo stock_status',
+            options: { lean: true } 
         }); 
 
         return res.status(200).json({
-            message: "Product added to cart successfully",
+            message: `${applianceIds.length} product(s) added to cart successfully`,
             cart: updatedCart
         });
 
     } catch (e) {
-        console.log("Error:", e.message);
+        console.error("Error:", e.message);
         return res.status(500).json({
-            error: "Facing issue while storing item to cart please try again",
-            details: e.message
+            error: "Facing issue while storing items to cart please try again"
         });
     }
 }
-
-
-module.exports.removeItemsFromCart=async(req,res)=>{
-
-    
-try{
-
-    await cartModel.findOneAndUpdate(
-        { user: req.user._id },
-        {
-            $set: {
-                items: [],
-                comboItem: []
+module.exports.removeItemsFromCart = async (req, res) => {
+    try {
+        await cartModel.findOneAndUpdate(
+            { user: req.user._id },
+            {
+                $set: {
+                    items: [],
+                    comboItem: []
+                }
+            },
+            { 
+                upsert: true,
+                setDefaultsOnInsert: true,
+                lean: true 
             }
-        },
-        { 
-            upsert: true,
-            setDefaultsOnInsert: true 
-        }
-    );
-return res.status(200).json({
-    message:"Sucessfully removed items"
-})
-}catch(e){
-    console.log(e.message);
-    return res.status(500).json({
-        error: "Facing issue while removing items from cart please try again",
-        details: e.message
-    });
-}
+        );
+        
+        return res.status(200).json({
+            message: "Successfully removed items"
+        });
+        
+    } catch (e) {
+        console.error("Error removing cart items:", e.message);
+        return res.status(500).json({
+            error: "Facing issue while removing items from cart please try again"
+        });
+    }
 }
 
 module.exports.getCartItems=async(req,res)=>{
