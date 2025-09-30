@@ -63,6 +63,36 @@ module.exports.addItemsToCart = async (req, res) => {
 }
 
 
+module.exports.removeItemsFromCart=async(req,res)=>{
+
+    
+try{
+
+    await cartModel.findOneAndUpdate(
+        { user: req.user._id },
+        {
+            $set: {
+                items: [],
+                comboItem: []
+            }
+        },
+        { 
+            upsert: true,
+            setDefaultsOnInsert: true 
+        }
+    );
+return res.status(200).json({
+    message:"Sucessfully removed items"
+})
+}catch(e){
+    console.log(e.message);
+    return res.status(500).json({
+        error: "Facing issue while removing items from cart please try again",
+        details: e.message
+    });
+}
+}
+
 module.exports.getCartItems=async(req,res)=>{
     try {
         
