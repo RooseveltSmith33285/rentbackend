@@ -18,6 +18,7 @@ function maskKeepLast3(card) {
     console.log(`stripe key is ${stripe}`)
     console.log(`Payment method key is ${process.env.PAYMENT_METHOD_JWT_KEY}`)
 console.log(`JWT KEY IS ${process.env.JWT_KEY}`)
+
     try {
     let user=await userModel.findOne({_id:req.user._id})
     let paymentMethodId=jwt.verify(user.paymentMethodToken,process.env.PAYMENT_METHOD_JWT_KEY)
@@ -31,10 +32,7 @@ paymentMethodId=paymentMethodId.paymentMethodId
 
      let subscriptionId=await createSubscription(cart.items,paymentMethodId,user,draftDay)
 
-     return res.status(200).json({
-        message:"Subscription sucesfull"
-     })
-   
+
         if (!cart) {
             return res.status(404).json({
                 error: "Cart not found"
@@ -68,10 +66,10 @@ paymentMethodId=paymentMethodId.paymentMethodId
             { $set: { items: [],comboItem:[], updatedAt: new Date() } }
         );
 
-        // return res.status(201).json({
-        //     message: "Order created successfully",
-        //     orderId: result.insertedId
-        // });
+        return res.status(201).json({
+            message: "Order created successfully",
+            orderId: result.insertedId
+        });
 
     } catch (e) {
 
@@ -634,21 +632,21 @@ const createSubscription = async (items, paymentMethod, customer,draftDay) => {
             },
         });
 
-    //   if(items.length==1){
-    //     const paymentIntent = await stripe.paymentIntents.create({
-    //         amount: 2500,
-    //         currency: 'usd',
-    //         customer:customer.customerId,
-    //         payment_method:paymentMethod
-    //       });
-    //       const paymentIntentConfirm = await stripe.paymentIntents.confirm(
-    //         paymentIntent.id,
-    //         {
-    //           payment_method: paymentMethod,
-    //           return_url: 'https://www.example.com',
-    //         }
-    //       );
-    //   }
+      if(items.length==1){
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: 2500,
+            currency: 'usd',
+            customer:customer.customerId,
+            payment_method:paymentMethod
+          });
+          const paymentIntentConfirm = await stripe.paymentIntents.confirm(
+            paymentIntent.id,
+            {
+              payment_method: paymentMethod,
+              return_url: 'https://www.example.com',
+            }
+          );
+      }
 console.log(`Subscription id is ${subscription.id}`)
         return subscription.id;
 
@@ -790,6 +788,103 @@ return res.status(200).json({
         return res.status(500).json({
             error: "Unable to fetch order details",
             details: process.env.NODE_ENV === 'development' ? e.message : undefined
+        });
+    }
+}
+
+
+module.exports.contactSupport = async(req, res) => {
+    let {name, email, issue} = req.body;
+    try {
+        // Validation
+        if (!name || !email || !issue) {
+            return res.status(400).json({
+                error: "Please provide name, email, and issue description"
+            });
+        }
+
+        const mailOptions = {
+            from: 'orders@enrichifydata.com',
+            to: 'rentsimple159@gmail.com',
+            subject: `Support Request from ${name}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                <!-- Header -->
+                <div style="background-color: #024a47; padding: 30px; text-align: center;">
+                  <h1 style="color: #ffffff; margin: 0; font-size: 28px;">New Support Request</h1>
+                  <p style="color: #ecf0f1; margin-top: 10px; font-size: 16px;">Customer needs assistance</p>
+                </div>
+                
+                <!-- Timestamp -->
+                <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+                  <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Received on</p>
+                  <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString()}</h2>
+                </div>
+          
+                <!-- Customer Information -->
+                <div style="padding: 30px;">
+                  <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px; margin-top: 0;">
+                    Customer Information
+                  </h3>
+                  
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                    <tr>
+                      <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Name</td>
+                      <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${name}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Email</td>
+                      <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${email}</td>
+                    </tr>
+                  </table>
+          
+                  <!-- Issue Description -->
+                  <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px; margin-top: 35px;">
+                    Issue Description
+                  </h3>
+                  
+                  <div style="margin-top: 20px; padding: 20px; background-color: #f8f9fa; border-left: 4px solid #024a47; border-radius: 4px;">
+                    <p style="margin: 0; color: #2c3e50; line-height: 1.6; white-space: pre-wrap;">${issue}</p>
+                  </div>
+          
+                  <!-- Action Required -->
+                  <div style="margin-top: 30px; padding: 15px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                    <p style="margin: 0; color: #856404; font-weight: 600;">⚠️ Action Required</p>
+                    <p style="margin: 5px 0 0 0; color: #856404; font-size: 14px;">Please respond to this customer within 24 hours.</p>
+                  </div>
+                </div>
+          
+                <!-- Footer -->
+                <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+                  <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+                    This is an automated support notification from RentSimple.
+                  </p>
+                  <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+                    © 2025 RentSimple. All rights reserved.
+                  </p>
+                </div>
+              </div>
+            `
+        };
+    
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: 'rentsimple159@gmail.com', 
+                pass: 'upqbbmeobtztqxyg' 
+            }
+        });
+        
+        await transporter.sendMail(mailOptions);
+
+        return res.status(200).json({
+            message: "Your message has been sent successfully! We'll get back to you soon."
+        });
+
+    } catch(e) {
+        console.log(e.message);
+        return res.status(500).json({
+            error: "Unable to send message. Please try again later."
         });
     }
 }
