@@ -178,11 +178,16 @@ module.exports.removeFromCart = async (req, res) => {
 
 module.exports.updateTvscreen=async(req,res)=>{
     let {tvSize}=req.body;
+    console.log("TVSIZE")
+    console.log(tvSize)
     try{
 await cartModel.updateOne({user:req.user._id},{
     $set:{
         tvSize
     }
+})
+return res.status(200).json({
+    message:"Tv Screen added sucessfully"
 })
     }catch(e){
         console.log(e.message);
