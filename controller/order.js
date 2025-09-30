@@ -649,7 +649,7 @@ const createSubscription = async (items, paymentMethod, customer,draftDay) => {
     //         }
     //       );
     //   }
-
+console.log(`Subscription id is ${subscription.id}`)
         return subscription.id;
 
     } catch (e) {
