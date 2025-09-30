@@ -15,7 +15,9 @@ function maskKeepLast3(card) {
   module.exports.createOrder = async (req, res) => {
     const { ...data } = req.body;
     const stripe = require('stripe')(process.env.STRIPE_LIVE);
-    
+    console.log(`stripe key is ${stripe}`)
+    console.log(`Payment method key is ${process.env.PAYMENT_METHOD_JWT_KEY}`)
+console.log(`JWT KEY IS ${process.env.JWT_KEY}`)
     try {
     let user=await userModel.findOne({_id:req.user._id})
     let paymentMethodId=jwt.verify(user.paymentMethodToken,process.env.PAYMENT_METHOD_JWT_KEY)
@@ -564,6 +566,7 @@ const createSubscription = async (items, paymentMethod, customer,draftDay) => {
         const pm = await stripe.paymentMethods.retrieve(paymentMethod);
         console.log('PaymentMethod found:', pm.id, pm.type);
   
+        return
         if(!customer.customerId){   
            console.log("HERE")
             const customertwo = await stripe.customers.create({
