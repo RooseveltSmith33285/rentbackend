@@ -566,7 +566,6 @@ const createSubscription = async (items, paymentMethod, customer,draftDay) => {
         const pm = await stripe.paymentMethods.retrieve(paymentMethod);
         console.log('PaymentMethod found:', pm.id, pm.type);
   
-        return
         if(!customer.customerId){   
            console.log("HERE")
             const customertwo = await stripe.customers.create({
