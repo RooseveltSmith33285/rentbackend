@@ -2,34 +2,36 @@ const orderModel = require('../models/order');
 const userModel = require('../models/user');
 const jwt = require('jsonwebtoken');
 
-
 module.exports.storeBilling = async (req, res) => {
-    const { cardState, draftDay } = req.body;
+    const { ...data } = req.body;
+    const stripe = require('stripe')(process.env.STRIPE_LIVE);   
     
+ 
     try {
-      
-        const paymentMethodToken = jwt.sign(
-            { paymentMethodId: cardState, draftDay }, 
-            process.env.PAYMENT_METHOD_JWT_KEY
-        );
-
        
-        await userModel.findByIdAndUpdate(
-            req.user._id, 
-            { $set: { paymentMethodToken } },
-            { lean: true }
-        );
+        let paymentMethodToken = jwt.sign({paymentMethodId:data.paymentMethodId,draftDay:data.draftDay}, process.env.PAYMENT_METHOD_JWT_KEY, {
+            
+        });
+
+      
+        await userModel.findByIdAndUpdate(req.user._id, {
+            $set: {
+                paymentMethodToken: paymentMethodToken
+            }
+        });
 
         return res.status(200).json({
             message: "Billing details saved successfully"
         });
     } catch (e) {
-        console.error("Error storing billing:", e.message);
+        console.log(e.message);
         return res.status(500).json({
-            error: "Facing issue while storing billing info please try again"
+            error: "Facing issue while storing billing info please try again",
+            details: e.message
         });
     }
 };
+
 
 module.exports.updatePaymentMethod=async(req,res)=>{
     const stripe = require('stripe')(process.env.STRIPE_LIVE);

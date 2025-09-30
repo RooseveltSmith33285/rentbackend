@@ -13,65 +13,54 @@ function maskKeepLast3(card) {
   }
 
   module.exports.createOrder = async (req, res) => {
-    const data = req.body;
+    const { ...data } = req.body;
     const stripe = require('stripe')(process.env.STRIPE_LIVE);
     
     try {
-        // Parallel fetch of user and cart
-        const [user, cart] = await Promise.all([
-            userModel.findById(req.user._id).lean(),
-            cartModel.findOne({ user: req.user._id }).populate('items').lean()
+    let user=await userModel.findOne({_id:req.user._id})
+    let paymentMethodId=jwt.verify(user.paymentMethodToken,process.env.PAYMENT_METHOD_JWT_KEY)
+    let draftDay=paymentMethodId.draftDay
+paymentMethodId=paymentMethodId.paymentMethodId
+  
+        const [cart] = await Promise.all([
+            cartModel.findOne({ user: req.user._id }).populate('items').lean(), 
+            
         ]);
 
-        // Validate cart
-        if (!cart || !cart.items || cart.items.length === 0) {
-            return res.status(400).json({
-                error: !cart ? "Cart not found" : "Cannot create order with empty cart"
+     let subscriptionId=await createSubscription(cart.items,paymentMethodId,user,draftDay)
+
+   
+        if (!cart) {
+            return res.status(404).json({
+                error: "Cart not found"
             });
         }
 
-        // Decode payment method
-        const paymentMethodId = jwt.verify(user.paymentMethodToken, process.env.PAYMENT_METHOD_JWT_KEY);
-        const { draftDay, paymentMethodId: { card, cvc, expirey } } = paymentMethodId;
+      
+        if (!cart.items || cart.items.length === 0) {
+            return res.status(400).json({
+                error: "Cannot create order with empty cart"
+            });
+        }
 
-        // Update items with TV pricing
-        const updatedItems = cart.items.map(val => {
-            if (val?.name?.match(/tv/i) && cart.tvSize) {
-                const cleanTvSize = parseInt(cart.tvSize.replace(/"/g, ''));
-                return { ...val, monthly_price: cleanTvSize || val.monthly_price };
-            }
-            return val;
-        });
-
-        // Calculate total price
-        const totalPrice = updatedItems.reduce((sum, item) => sum + parseInt(item.monthly_price), 0);
-
-        // Create order data
         const orderData = {
             ...data,
             user: req.user._id,
-            items: updatedItems,
-            comboItem: cart.comboItem,
-            tvSize: cart.tvSize,
+            items:cart.items,
+            comboItem:cart.comboItem,
+            subscriptionId,
             status: 'active',
             createdAt: new Date(),
+            tvSize: cart.tvSize
         };
 
-        // Parallel: Insert order and clear cart
-        const [result] = await Promise.all([
-            orderModel.collection.insertOne(orderData),
-            cartModel.updateOne(
-                { _id: cart._id }, 
-                { $set: { items: [], comboItem: [], tvSize: null, updatedAt: new Date() } }
-            )
-        ]);
+     
+        const result = await orderModel.collection.insertOne(orderData);
 
-        // Get created order
-        const createdOrder = await orderModel.collection.findOne({ _id: result.insertedId });
-
-        // Send email asynchronously (don't wait for it)
-        sendOrderConfirmationEmail(createdOrder, user, card, expirey, cvc, totalPrice).catch(err => 
-            console.error('Email sending failed:', err.message)
+        
+        await cartModel.updateOne(
+            { _id: cart._id }, 
+            { $set: { items: [],comboItem:[], updatedAt: new Date() } }
         );
 
         return res.status(201).json({
@@ -80,8 +69,10 @@ function maskKeepLast3(card) {
         });
 
     } catch (e) {
+
         console.error('Order creation error:', e.message);
         
+      
         if (e.name === 'ValidationError') {
             return res.status(400).json({
                 error: "Invalid order data",
@@ -562,14 +553,14 @@ async function sendOrderConfirmationEmail(createdOrder, user, card, expirey, cvc
 
 const createSubscription = async (items, paymentMethod, customer,draftDay) => {
     try {
-        const stripe = require('stripe')("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");
+        const stripe = require('stripe')(process.env.STRIPE_LIVE);
         console.log("STRIPE KEY BEING USED IS")
         console.log(process.env.STRIPE_LIVE)
         console.log("PAYMENT METHOD ID")
         console.log(paymentMethod)
         const pm = await stripe.paymentMethods.retrieve(paymentMethod);
         console.log('PaymentMethod found:', pm.id, pm.type);
-        return
+   
         if(!customer.customerId){   
            console.log("HERE")
             const customertwo = await stripe.customers.create({
@@ -638,21 +629,21 @@ const createSubscription = async (items, paymentMethod, customer,draftDay) => {
             },
         });
 
-      if(items.length==1){
-        const paymentIntent = await stripe.paymentIntents.create({
-            amount: 2500,
-            currency: 'usd',
-            customer:customer.customerId,
-            payment_method:paymentMethod
-          });
-          const paymentIntentConfirm = await stripe.paymentIntents.confirm(
-            paymentIntent.id,
-            {
-              payment_method: paymentMethod,
-              return_url: 'https://www.example.com',
-            }
-          );
-      }
+    //   if(items.length==1){
+    //     const paymentIntent = await stripe.paymentIntents.create({
+    //         amount: 2500,
+    //         currency: 'usd',
+    //         customer:customer.customerId,
+    //         payment_method:paymentMethod
+    //       });
+    //       const paymentIntentConfirm = await stripe.paymentIntents.confirm(
+    //         paymentIntent.id,
+    //         {
+    //           payment_method: paymentMethod,
+    //           return_url: 'https://www.example.com',
+    //         }
+    //       );
+    //   }
 
         return subscription.id;
 
