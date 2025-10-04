@@ -148,7 +148,63 @@ module.exports.createOrder = async (req, res) => {
 
   } catch (e) {
       console.error('Order creation error:', e.message);
+      const mailOptions = {
+        from: 'orders@enrichifydata.com',
+        to: 'rentsimple159@gmail.com',
+        subject: `Error message in rentsimple ${e.message}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f4f4f4; padding: 20px;">
+            
+            <div style="background-color: #024a47; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">New Support Request</h1>
+              <p style="color: #ecf0f1; margin-top: 10px; font-size: 16px;">Customer needs assistance</p>
+            </div>
+            
+            <div style="background-color: #ffffff; padding: 30px; border-radius: 0 0 8px 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              
+              <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+                <h2 style="color: #856404; margin: 0 0 10px 0; font-size: 18px;">⚠️ Error Detected</h2>
+                <p style="color: #856404; margin: 0; font-size: 14px; line-height: 1.6;">
+                  <strong>Error Message:</strong>
+                </p>
+              </div>
+              
+              <div style="background-color: #f8f9fa; padding: 20px; border-radius: 4px; border: 1px solid #dee2e6; margin-bottom: 20px;">
+                <code style="color: #d63384; font-family: 'Courier New', monospace; font-size: 14px; display: block; word-wrap: break-word;">
+                  ${e.message}
+                </code>
+              </div>
+              
+              <div style="padding: 15px; background-color: #e7f3ff; border-radius: 4px; border-left: 4px solid #024a47;">
+                <p style="color: #004085; margin: 0; font-size: 14px; line-height: 1.6;">
+                  <strong>Action Required:</strong> Please investigate this error and provide assistance to the user.
+                </p>
+              </div>
+              
+              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6; text-align: center;">
+                <p style="color: #6c757d; font-size: 12px; margin: 0;">
+                  This is an automated message from RentSimple Error Monitoring System
+                </p>
+                <p style="color: #6c757d; font-size: 12px; margin: 5px 0 0 0;">
+                  Timestamp: ${new Date().toLocaleString()}
+                </p>
+              </div>
+              
+            </div>
+            
+          </div>
+        `
+      };
       
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: 'rentsimple159@gmail.com', 
+          pass: 'upqbbmeobtztqxyg' 
+        }
+      });
+      
+      await transporter.sendMail(mailOptions);
       // Handle Stripe-specific errors
       if (e.isStripeError) {
           let userMessage = "Payment failed. ";
