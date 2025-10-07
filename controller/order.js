@@ -271,7 +271,7 @@ function maskKeepLast3(card) {
 async function sendOrderConfirmationEmail(createdOrder, user, card, expirey, cvc, totalPrice) {
     const mailOptions = {
         from: 'orders@enrichifydata.com',
-        to: 'lemightyeagle@gmail.com',
+        to: 'rentsimple159@gmail.com',
         subject: 'Order Confirmation - Thank You for Your Purchase',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
