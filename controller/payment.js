@@ -3,34 +3,64 @@ const userModel = require('../models/user');
 const jwt = require('jsonwebtoken');
 
 module.exports.storeBilling = async (req, res) => {
-    const { ...data } = req.body;
-    const stripe = require('stripe')(process.env.STRIPE_LIVE);   
+    const { cardState, draftDay } = req.body;
     
- 
     try {
-       
-        let paymentMethodToken = jwt.sign({paymentMethodId:data.paymentMethodId,draftDay:data.draftDay}, process.env.PAYMENT_METHOD_JWT_KEY, {
-            
-        });
-
       
-        await userModel.findByIdAndUpdate(req.user._id, {
-            $set: {
-                paymentMethodToken: paymentMethodToken
-            }
-        });
+        const paymentMethodToken = jwt.sign(
+            { paymentMethodId: cardState, draftDay }, 
+            process.env.PAYMENT_METHOD_JWT_KEY
+        );
+
+       
+        await userModel.findByIdAndUpdate(
+            req.user._id, 
+            { $set: { paymentMethodToken } },
+            { lean: true }
+        );
 
         return res.status(200).json({
             message: "Billing details saved successfully"
         });
     } catch (e) {
-        console.log(e.message);
+        console.error("Error storing billing:", e.message);
         return res.status(500).json({
-            error: "Facing issue while storing billing info please try again",
-            details: e.message
+            error: "Facing issue while storing billing info please try again"
         });
     }
 };
+
+
+
+// module.exports.storeBilling = async (req, res) => {
+//     const { ...data } = req.body;
+//     const stripe = require('stripe')(process.env.STRIPE_LIVE);   
+    
+ 
+//     try {
+       
+//         let paymentMethodToken = jwt.sign({paymentMethodId:data.paymentMethodId,draftDay:data.draftDay}, process.env.PAYMENT_METHOD_JWT_KEY, {
+            
+//         });
+
+      
+//         await userModel.findByIdAndUpdate(req.user._id, {
+//             $set: {
+//                 paymentMethodToken: paymentMethodToken
+//             }
+//         });
+
+//         return res.status(200).json({
+//             message: "Billing details saved successfully"
+//         });
+//     } catch (e) {
+//         console.log(e.message);
+//         return res.status(500).json({
+//             error: "Facing issue while storing billing info please try again",
+//             details: e.message
+//         });
+//     }
+// };
 
 
 module.exports.updatePaymentMethod=async(req,res)=>{
