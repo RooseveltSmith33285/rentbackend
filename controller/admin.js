@@ -490,6 +490,7 @@ return res.status(400).json({
 }
 
 
+
 module.exports.loginAdmin=async(req,res)=>{
     let {...data}=req.body;
     try{
@@ -510,6 +511,36 @@ if(!passwordMatch){
 
 return res.status(200).json({
     message:"Logged in sucessfully"
+})
+    }catch(e){
+console.log(e.message)
+return res.status(400).json({
+    error:"Error while creating admin"
+})
+    }
+}
+
+
+
+module.exports.resetAdmin=async(req,res)=>{
+    let {...data}=req.body;
+    try{
+let emailCorrect=await adminModel.findOne({email:data.email})
+if(!emailCorrect){
+    return res.status(400).json({
+        error:"No admin with this email found"
+    })
+}
+
+
+await adminModel.findByIdAndUpdate(emailCorrect._id,{
+    $set:{
+        password:data.password
+    }
+})
+
+return res.status(200).json({
+    message:"Password reseted sucessfully"
 })
     }catch(e){
 console.log(e.message)
