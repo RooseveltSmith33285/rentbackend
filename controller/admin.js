@@ -7,7 +7,8 @@ const fs=require('fs')
 
 const orderModel = require('../models/order');
 const Product = require('../models/products');
-const userModel=require('../models/user')
+const userModel=require('../models/user');
+const adminModel = require('../models/admin');
 
 module.exports.getUsers = async (req, res) => {
     try {
@@ -470,5 +471,50 @@ return res.status(200).json({
             error: "Facing issue while fetching data",
            
         });
+    }
+}
+
+module.exports.createAdmin=async(req,res)=>{
+    let {...data}=req.body;
+    try{
+await adminModel.create(data)
+return res.status(200).json({
+    message:"Admin created sucessfully"
+})
+    }catch(e){
+console.log(e.message)
+return res.status(400).json({
+    error:"Error while creating admin"
+})
+    }
+}
+
+
+module.exports.loginAdmin=async(req,res)=>{
+    let {...data}=req.body;
+    try{
+let emailCorrect=await adminModel.findOne({email:data.email})
+if(!emailCorrect){
+    return res.status(400).json({
+        error:"No admin with this email found"
+    })
+}
+
+
+let passwordMatch=await adminModel.findOne({password:data.password})
+if(!passwordMatch){
+    return res.status(400).json({
+        error:"Password is incorrect"
+    })
+}
+
+return res.status(200).json({
+    message:"Logged in sucessfully"
+})
+    }catch(e){
+console.log(e.message)
+return res.status(400).json({
+    error:"Error while creating admin"
+})
     }
 }
