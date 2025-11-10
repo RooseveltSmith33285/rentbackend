@@ -27,10 +27,10 @@ module.exports.getDashboardData = async (req, res) => {
   try {
     console.log("HEY")
     const stripe = require('stripe')(process.env.STRIPE_LIVE);
-
-    let user=await userModel.findById(req.user._id)
+let id=req.user?._id?req.user?._id:req?.user?.id
+    let user=await userModel.findById(id)
     let orders=await ordersModel.find({})
-    orders=orders?.filter(u=>u?.user?.toString()==req?.user?._id?.toString())
+    orders=orders?.filter(u=>u?.user?.toString()==id?.toString())
  
     let paymentMethodId = jwt.verify(user.paymentMethodToken, process.env.PAYMENT_METHOD_JWT_KEY);
     paymentMethodId=paymentMethodId.paymentMethodId

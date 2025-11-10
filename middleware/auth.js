@@ -12,7 +12,6 @@ module.exports.Auth = async (req, res, next) => {
         if (req.headers.authorization.startsWith('Bearer ')) {
             let token = req.headers.authorization.split(' ')[1];
             
-           
             if (!token) {
                 return res.status(401).json({
                     error: "Token missing"
@@ -21,6 +20,7 @@ module.exports.Auth = async (req, res, next) => {
 
            
             let user = jwt.verify(token, process.env.JWT_KEY);
+       
             req.user = user;
            
             next();

@@ -1,0 +1,367 @@
+const Listing = require('../models/listing');
+const Vendor = require('../models/vendor');
+const CommunityPost = require('../models/communitypost');
+const {cloudinaryUploadImage}=require('../middleware/cloudinary')
+
+
+exports.createPost = async (req, res) => {
+  try {
+    const { type, content, linkedListing } = req.body;
+    let id = req?.user?._id ? req?.user?._id : req.user.id;
+
+    if (!type || !content) {
+      return res.status(400).json({
+        error: 'Please provide type and content'
+      });
+    }
+
+
+    let imageData = [];
+    
+    if (req.files && req.files.length > 0) {
+    
+      for (const file of req.files) {
+        const result = await cloudinaryUploadImage(file.path);
+        imageData.push({
+          url: result.url,
+          publicId: result.public_id
+        });
+      }
+    }
+
+    const post = await CommunityPost.create({
+      vendor: id,
+      type,
+      content,
+      linkedListing: linkedListing || undefined,
+      images: imageData
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Post created successfully',
+      post
+    });
+
+  } catch (error) {
+    console.error('Create post error:', error);
+    res.status(500).json({
+      error: 'Failed to create post',
+      details: error.message
+    });
+  }
+};
+
+
+
+
+  exports.getFeed = async (req, res) => {
+    try {
+      const { page = 1, limit = 10, filter = 'all' } = req.query;
+  
+      let feedItems = [];
+  
+      if (filter === 'all' || filter === 'posts') {
+        const posts = await CommunityPost.find({ isActive: true })
+          .populate('vendor', 'name businessName')
+          .populate('linkedListing', 'title pricing')
+          .sort({ createdAt: -1 })
+          .limit(limit * 1)
+          .skip((page - 1) * limit);
+        
+        feedItems = [...feedItems, ...posts.map(p => ({ ...p.toObject(), itemType: 'post' }))];
+      }
+  
+      if (filter === 'all' || filter === 'listings') {
+        const listings = await Listing.find({ status: 'active' })
+          .populate('vendor', 'name businessName')
+          .sort({ 'visibility.visibilityScore': -1 })
+          .limit(limit * 1)
+          .skip((page - 1) * limit);
+        
+        feedItems = [...feedItems, ...listings.map(l => ({ ...l.toObject(), itemType: 'listing' }))];
+      }
+  
+  
+      feedItems.sort((a, b) => {
+        const aScore = a.visibility?.visibilityScore || 0;
+        const bScore = b.visibility?.visibilityScore || 0;
+        return bScore - aScore;
+      });
+  
+    
+
+      res.status(200).json({
+        success: true,
+        feedItems: feedItems.slice(0, limit),
+        page,
+        hasMore: feedItems.length === limit
+      });
+  
+    } catch (error) {
+      console.error('Get feed error:', error);
+      res.status(500).json({
+        error: 'Failed to fetch feed'
+      });
+    }
+  };
+
+  
+
+
+
+  exports.getPost = async (req, res) => {
+    try {
+      const { postId } = req.params;
+  
+      const post = await CommunityPost.findById(postId)
+        .populate('vendor', 'businessName profileImage name')
+        .populate('linkedListing', 'title category price images')
+        .populate('likes.user', 'businessName profileImage name')
+        .populate('comments.user', 'businessName profileImage name');
+  
+      if (!post) {
+        return res.status(404).json({
+          error: 'Post not found'
+        });
+      }
+  
+      res.status(200).json({
+        success: true,
+        post
+      });
+  
+    } catch (error) {
+      console.error('Get post error:', error);
+      res.status(500).json({
+        error: 'Failed to fetch post',
+        details: error.message
+      });
+    }
+  };
+
+
+  exports.likePost = async (req, res) => {
+    try {
+      const { postId } = req.params;
+      let userId = req?.user?._id ? req?.user?._id : req.user.id;
+  
+      const post = await CommunityPost.findById(postId);
+  
+      if (!post) {
+        return res.status(404).json({
+          error: 'Post not found'
+        });
+      }
+  
+      // Check if user already liked the post
+      const alreadyLiked = post.likes.some(like => like.user.toString() === userId.toString());
+  
+      if (alreadyLiked) {
+        return res.status(400).json({
+          error: 'You have already liked this post'
+        });
+      }
+  
+      // Add like
+      post.likes.push({ user: userId });
+      await post.save();
+  
+      res.status(200).json({
+        success: true,
+        message: 'Post liked successfully',
+        likes: post.engagement.likes
+      });
+  
+    } catch (error) {
+      console.error('Like post error:', error);
+      res.status(500).json({
+        error: 'Failed to like post',
+        details: error.message
+      });
+    }
+  };
+  
+  // Unlike a post
+  exports.unlikePost = async (req, res) => {
+    try {
+      const { postId } = req.params;
+      let userId = req?.user?._id ? req?.user?._id : req.user.id;
+  
+      const post = await CommunityPost.findById(postId);
+  
+      if (!post) {
+        return res.status(404).json({
+          error: 'Post not found'
+        });
+      }
+  
+      // Remove like
+      post.likes = post.likes.filter(like => like.user.toString() !== userId.toString());
+      await post.save();
+  
+      res.status(200).json({
+        success: true,
+        message: 'Post unliked successfully',
+        likes: post.engagement.likes
+      });
+  
+    } catch (error) {
+      console.error('Unlike post error:', error);
+      res.status(500).json({
+        error: 'Failed to unlike post',
+        details: error.message
+      });
+    }
+  };
+  
+  // Create a comment
+  exports.createComment = async (req, res) => {
+    try {
+      const { postId } = req.params;
+      const { text } = req.body;
+      let userId = req?.user?._id ? req?.user?._id : req.user.id;
+  
+      if (!text || text.trim().length === 0) {
+        return res.status(400).json({
+          error: 'Comment text is required'
+        });
+      }
+  
+      if (text.length > 1000) {
+        return res.status(400).json({
+          error: 'Comment must be less than 1000 characters'
+        });
+      }
+  
+      const post = await CommunityPost.findById(postId);
+  
+      if (!post) {
+        return res.status(404).json({
+          error: 'Post not found'
+        });
+      }
+  
+      // Add comment
+      const comment = {
+        user: userId,
+        text: text.trim()
+      };
+  
+      post.comments.push(comment);
+      await post.save();
+  
+      // Populate user info for the new comment
+      await post.populate('comments.user', 'businessName profileImage');
+  
+      // Get the newly added comment
+      const newComment = post.comments[post.comments.length - 1];
+  
+      res.status(201).json({
+        success: true,
+        message: 'Comment added successfully',
+        comment: newComment,
+        totalComments: post.engagement.comments
+      });
+  
+    } catch (error) {
+      console.error('Create comment error:', error);
+      res.status(500).json({
+        error: 'Failed to add comment',
+        details: error.message
+      });
+    }
+  };
+  
+  // Get comments for a post
+  exports.getComments = async (req, res) => {
+    try {
+      const { postId } = req.params;
+      const { page = 1, limit = 20 } = req.query;
+  
+      const post = await CommunityPost.findById(postId)
+        .populate('comments.user', 'businessName profileImage')
+        .select('comments');
+  
+      if (!post) {
+        return res.status(404).json({
+          error: 'Post not found'
+        });
+      }
+  
+      // Sort comments by newest first
+      const sortedComments = post.comments.sort((a, b) => b.createdAt - a.createdAt);
+  
+      // Pagination
+      const startIndex = (page - 1) * limit;
+      const endIndex = page * limit;
+      const paginatedComments = sortedComments.slice(startIndex, endIndex);
+  
+      res.status(200).json({
+        success: true,
+        comments: paginatedComments,
+        total: post.comments.length,
+        page: parseInt(page),
+        totalPages: Math.ceil(post.comments.length / limit)
+      });
+  
+    } catch (error) {
+      console.error('Get comments error:', error);
+      res.status(500).json({
+        error: 'Failed to fetch comments',
+        details: error.message
+      });
+    }
+  };
+  
+  // Delete a comment
+  exports.deleteComment = async (req, res) => {
+    try {
+      const { postId, commentId } = req.params;
+      let userId = req?.user?._id ? req?.user?._id : req.user.id;
+  
+      const post = await CommunityPost.findById(postId);
+  
+      if (!post) {
+        return res.status(404).json({
+          error: 'Post not found'
+        });
+      }
+  
+      // Find the comment
+      const comment = post.comments.id(commentId);
+  
+      if (!comment) {
+        return res.status(404).json({
+          error: 'Comment not found'
+        });
+      }
+  
+      // Check if user owns the comment or owns the post
+      const isCommentOwner = comment.user.toString() === userId.toString();
+      const isPostOwner = post.vendor.toString() === userId.toString();
+  
+      if (!isCommentOwner && !isPostOwner) {
+        return res.status(403).json({
+          error: 'You are not authorized to delete this comment'
+        });
+      }
+  
+      // Remove comment
+      post.comments.pull(commentId);
+      await post.save();
+  
+      res.status(200).json({
+        success: true,
+        message: 'Comment deleted successfully',
+        totalComments: post.engagement.comments
+      });
+  
+    } catch (error) {
+      console.error('Delete comment error:', error);
+      res.status(500).json({
+        error: 'Failed to delete comment',
+        details: error.message
+      });
+    }
+  };

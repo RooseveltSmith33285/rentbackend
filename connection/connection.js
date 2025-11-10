@@ -1,6 +1,6 @@
 const mongoose=require('mongoose')
 
-// let connection=mongoose.connect('mongodb://127.0.0.1/rent')
+// let connection=mongoose.connect('mongodb://127.0.0.1/newrent')
 
 
 let connection=mongoose.connect('mongodb+srv://developer:developer@cluster0.k1ekxcf.mongodb.net/')

@@ -10,6 +10,9 @@ const orderRoutes=require('./routes/order')
 const cartRoutes=require('./routes/cart')
 const dashboardRoutes=require('./routes/dashboard')
 const adminRoutes=require('./routes/admin')
+const vendorRoutes=require('./routes/vendor')
+const vendorAuthRoutes=require('./routes/vendorauth')
+const communityRoutes=require('./routes/community')
 require('dotenv').config();
 app.use(cors())
 app.use(express.json())
@@ -21,6 +24,9 @@ app.use(cartRoutes)
 app.use(orderRoutes)
 app.use(dashboardRoutes)
 app.use(adminRoutes)
+app.use(vendorRoutes)
+app.use(vendorAuthRoutes)
+app.use(communityRoutes)
 
 app.get('/cancelsub',async(req,res)=>{
   try{
