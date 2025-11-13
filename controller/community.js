@@ -63,11 +63,12 @@ exports.createPost = async (req, res) => {
   
       if (filter === 'all' || filter === 'posts') {
         const posts = await CommunityPost.find({ isActive: true })
-          .populate('vendor', 'name businessName')
-          .populate('linkedListing', 'title pricing')
-          .sort({ createdAt: -1 })
-          .limit(limit * 1)
-          .skip((page - 1) * limit);
+        .populate('vendor', 'name businessName')
+        .populate('linkedListing', 'title pricing')
+        .populate('comments.user', 'name businessName')
+        .sort({ createdAt: -1 })
+        .limit(limit * 1)
+        .skip((page - 1) * limit);
         
         feedItems = [...feedItems, ...posts.map(p => ({ ...p.toObject(), itemType: 'post' }))];
       }
@@ -91,6 +92,7 @@ exports.createPost = async (req, res) => {
   
     
 
+      console.log(JSON.stringify(feedItems))
       res.status(200).json({
         success: true,
         feedItems: feedItems.slice(0, limit),

@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
 const {cloudinaryUploadImage}=require('../middleware/cloudinary')
+const {approveRequest,rejectRequest}=require('../controller/vendor')
+const {sendMessage,getConversation,  getVendorRequests,getUser,seenMessages,getConversations,getMessages}=require('../controller/vendor')
 const fs = require('fs');
 const {
   createListing,
@@ -21,6 +23,8 @@ const {
   createPost,
   getFeed
 } = require('../controller/community');
+
+const {getVendorInfo}=require('../controller/vendor')
 
 const { getVendorProfile}=require('../controller/vendor')
 let upload=require('../middleware/upload')
@@ -68,7 +72,7 @@ router.post('/listings' , Auth,createListing);
 router.get('/listings', Auth, getVendorListings);
 router.put('/listings/:id', Auth,upload.array('images'),updateListing);
 router.delete('/listings/:id', Auth,deleteListing);
-
+router.get('/getVendorInfo/:id',getVendorInfo)
 
 router.post('/boost',  Auth,createBoost);
 router.post('/updateStatus',Auth,updateStatus)
@@ -83,4 +87,25 @@ router.get('/posts',getFeed)
 router.get('/vendor/profile',Auth,getVendorProfile)
 
 
+
+
+
+router.post('/vendor/sendMessage',Auth,sendMessage)
+router.get('/vendor/getMessages/:user',Auth,getMessages)
+router.get('/vendor/getConversations',Auth,getConversations)
+router.get('/vendor/getConversation/:vendor',Auth,getConversation)
+router.get('/vendor/seenMessages/:user',Auth,seenMessages)
+router.get('/vendor/getUserInfo/:user',getUser)
+router.get('/getVendorRequests',Auth,getVendorRequests)
+
+
+router.post('/approveRequest', upload.fields([
+  { name: 'front', maxCount: 1 },
+  { name: 'side', maxCount: 1 },
+  { name: 'serialTag', maxCount: 1 },
+  { name: 'condition', maxCount: 1 }
+]), approveRequest)
+
+
+router.patch('/rejectRequest',rejectRequest)
 module.exports = router;

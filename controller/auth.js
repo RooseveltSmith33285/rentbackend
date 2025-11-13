@@ -102,7 +102,8 @@ module.exports.register = async (req, res) => {
 
         return res.status(201).json({
             token: userToken,
-            message: "User registered successfully"
+            message: "User registered successfully",
+            userId:user.id
         });
     } catch (e) {
         console.log(e.message);
@@ -140,7 +141,8 @@ module.exports.login = async (req, res) => {
 
         return res.status(200).json({
             message: "User logged in successfully",
-            token: userToken
+            token: userToken,
+            userId:userFound._id
         });
     } catch (e) {
         console.log(e.message);
@@ -168,7 +170,9 @@ return res.status(200).json({
 }
 
 module.exports.resetPassword=async(req,res)=>{
-    let {email,password}=req.body;
+    let {email,newPassword}=req.body;
+  let password=newPassword
+
     try{
 
         let userFound=await userModel.findOne({email})
