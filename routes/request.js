@@ -1,4 +1,4 @@
-const {sendRequestUser,getRequestsUser,approveOfferByUser,getRequestById,rejectRequestOffer,rejectOffer}=require('../controller/request');
+const {sendRequestUser,getRequestsUser,releasePaymentToVendor,approveOfferByUser,getRequestById,rejectRequestOffer,rejectOffer}=require('../controller/request');
 const { Auth } = require('../middleware/auth');
 const router=require('express').Router();
 
@@ -7,5 +7,6 @@ router.get('/getRequestsUser',Auth,getRequestsUser)
 router.patch('/rejectOffer/:id',rejectOffer)
 router.patch('/rejectRequestOffer/:id',rejectRequestOffer)
 router.get('/getRequestById/:id',getRequestById)
-router.post('/approveOfferByUser',approveOfferByUser)
+router.post('/approveOfferByUser',Auth,approveOfferByUser)
+router.post('/releasePaymentToVendor',releasePaymentToVendor)
 module.exports=router;  

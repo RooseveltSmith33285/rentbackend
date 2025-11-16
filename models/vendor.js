@@ -65,6 +65,14 @@ const vendorSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  stripe_account_id: {
+    type: String,
+    default: null
+},
+stripe_connect_status:{
+  type:Boolean,
+  default:false
+},
   isActive: {
     type: Boolean,
     default: true

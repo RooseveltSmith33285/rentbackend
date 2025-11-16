@@ -3,7 +3,7 @@ const Listing = require('../models/listing');
 
 
 exports.createBoost = async (req, res) => {
-  const stripe = require('stripe')("sk_test_51SRynCPBwgTANTk6f98dzqAcIteQlGBnNrnhasqhUeStTSJJZsCWobZALyziTYOXnN8NPW7QsBoFVfJKo8d7Nh1u00KlOxD2yn");   
+  const stripe = require('stripe')(process.env.STRIPE_LIVE);   
     
   try {
     const { listingId, amount, duration, paymentMethodId } = req.body;

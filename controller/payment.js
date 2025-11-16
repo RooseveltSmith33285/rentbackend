@@ -1,5 +1,6 @@
 const orderModel = require('../models/order');
 const userModel = require('../models/user');
+const Vendor=require('../models/vendor')
 const jwt = require('jsonwebtoken');
 
 module.exports.storeBilling = async (req, res) => {
@@ -278,3 +279,236 @@ module.exports.resumeBilling = async (req, res) => {
         });
     }
 }
+
+
+
+
+module.exports.handleStripeConnectWebhook = async (req, res) => {
+    const stripe = require('stripe')(process.env.STRIPE_LIVE);
+    const endpointSecret = "whsec_b82d718fbae44ab38035f9ce59915a1c5c7870d001c5d90f38cab27b8e52a15c";
+    
+    const sig = req.headers['stripe-signature'];
+    let event;
+    
+    try {
+      // Verify webhook signature
+      event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+    } catch (err) {
+      console.error('⚠️ Webhook signature verification failed:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+    
+    console.log('✅ Webhook received:', event.type);
+    
+    // Handle different event types
+    try {
+      switch (event.type) {
+        // Account updated - Check if onboarding is complete
+        case 'account.updated':
+          await handleAccountUpdated(event.data.object);
+          break;
+        
+        // External account (bank account) added
+        case 'account.external_account.created':
+          await handleExternalAccountCreated(event.data.object);
+          break;
+        
+        // Capability updated (transfers capability is key)
+        case 'capability.updated':
+          await handleCapabilityUpdated(event.data.object);
+          break;
+        
+        // Account application completed
+        case 'account.application.authorized':
+          await handleAccountAuthorized(event.data.object);
+          break;
+        
+        // Account application deauthorized
+        case 'account.application.deauthorized':
+          await handleAccountDeauthorized(event.data.object);
+          break;
+        
+        default:
+          console.log(`Unhandled event type: ${event.type}`);
+      }
+      
+      // Return 200 to acknowledge receipt
+      res.json({ received: true });
+      
+    } catch (error) {
+      console.error('Error processing webhook:', error);
+      res.status(500).json({ error: 'Webhook processing failed' });
+    }
+  };
+
+
+  async function handleAccountUpdated(account) {
+    console.log('📝 Processing account.updated for:', account.id);
+    
+    try {
+      // Find vendor by Stripe account ID
+      const vendor = await Vendor.findOne({ stripe_account_id: account.id });
+      
+      if (!vendor) {
+        console.log('⚠️ No vendor found for account:', account.id);
+        return;
+      }
+      
+      // Check if account is fully onboarded and ready for payments
+      const isFullyOnboarded = account.charges_enabled && 
+                               account.payouts_enabled &&
+                               account.details_submitted &&
+                               account.capabilities?.transfers === 'active';
+      
+      console.log('Account status:', {
+        vendorId: vendor._id,
+        accountId: account.id,
+        chargesEnabled: account.charges_enabled,
+        payoutsEnabled: account.payouts_enabled,
+        detailsSubmitted: account.details_submitted,
+        transfersCapability: account.capabilities?.transfers,
+        isFullyOnboarded
+      });
+      
+      // Update vendor in database
+      await Vendor.findByIdAndUpdate(vendor._id, {
+        $set: {
+          stripe_connect_status: isFullyOnboarded,
+          stripe_account_id: account.id,
+          stripeAccountData: {
+            chargesEnabled: account.charges_enabled,
+            payoutsEnabled: account.payouts_enabled,
+            detailsSubmitted: account.details_submitted,
+            transfersCapability: account.capabilities?.transfers,
+            country: account.country,
+            defaultCurrency: account.default_currency,
+            lastUpdated: new Date()
+          }
+        }
+      });
+      
+      if (isFullyOnboarded) {
+        console.log('✅ Vendor onboarding COMPLETE:', vendor._id);
+        
+        // Optional: Send email notification to vendor
+        // await sendOnboardingCompleteEmail(vendor.email, vendor.name);
+      } else {
+        console.log('⏳ Vendor onboarding INCOMPLETE:', vendor._id);
+        console.log('Missing requirements:', account.requirements?.currently_due);
+      }
+      
+    } catch (error) {
+      console.error('Error handling account.updated:', error);
+      throw error;
+    }
+  }
+  
+  async function handleExternalAccountCreated(externalAccount) {
+    console.log('🏦 External account created:', externalAccount.id);
+    
+    try {
+      const vendor = await Vendor.findOne({ 
+        stripe_account_id: externalAccount.account 
+      });
+      
+      if (vendor) {
+        console.log('✅ Bank account added for vendor:', vendor._id);
+        
+        // Optional: Update vendor with bank account info
+        await Vendor.findByIdAndUpdate(vendor._id, {
+          $set: {
+            'stripeAccountData.hasBankAccount': true,
+            'stripeAccountData.bankAccountLast4': externalAccount.last4,
+            'stripeAccountData.bankAccountStatus': externalAccount.status
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error handling external_account.created:', error);
+    }
+  }
+  
+  /**
+   * Handle capability.updated event
+   * Transfers capability is what allows receiving payments
+   */
+  async function handleCapabilityUpdated(capability) {
+    console.log('⚡ Capability updated:', capability.id, capability.status);
+    
+    try {
+      const vendor = await Vendor.findOne({ 
+        stripe_account_id: capability.account 
+      });
+      
+      if (vendor && capability.id === 'transfers') {
+        const isActive = capability.status === 'active';
+        
+        await Vendor.findByIdAndUpdate(vendor._id, {
+          $set: {
+            'stripeAccountData.transfersCapability': capability.status
+          }
+        });
+        
+        if (isActive) {
+          console.log('✅ Transfers capability ACTIVE for vendor:', vendor._id);
+        } else {
+          console.log('⏳ Transfers capability status:', capability.status);
+        }
+      }
+    } catch (error) {
+      console.error('Error handling capability.updated:', error);
+    }
+  }
+  
+  /**
+   * Handle account.application.authorized event
+   * Account successfully connected
+   */
+  async function handleAccountAuthorized(application) {
+    console.log('✅ Account authorized:', application.account);
+    
+    try {
+      const vendor = await Vendor.findOne({ 
+        stripe_account_id: application.account 
+      });
+      
+      if (vendor) {
+        await Vendor.findByIdAndUpdate(vendor._id, {
+          $set: {
+            'stripeAccountData.applicationStatus': 'authorized'
+          }
+        });
+        console.log('✅ Application authorized for vendor:', vendor._id);
+      }
+    } catch (error) {
+      console.error('Error handling account.application.authorized:', error);
+    }
+  }
+  
+  /**
+   * Handle account.application.deauthorized event
+   * Account disconnected
+   */
+  async function handleAccountDeauthorized(application) {
+    console.log('⚠️ Account deauthorized:', application.account);
+    
+    try {
+      const vendor = await Vendor.findOne({ 
+        stripe_account_id: application.account 
+      });
+      
+      if (vendor) {
+        await Vendor.findByIdAndUpdate(vendor._id, {
+          $set: {
+            stripe_connect_status: false,
+            'stripeAccountData.applicationStatus': 'deauthorized'
+          }
+        });
+        console.log('⚠️ Application deauthorized for vendor:', vendor._id);
+      }
+    } catch (error) {
+      console.error('Error handling account.application.deauthorized:', error);
+    }
+  }
+
+  

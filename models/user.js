@@ -9,6 +9,13 @@ const userSchema=mongoose.Schema({
         type:String,
         required:true
     },
+    stripe_customer_id: {
+        type: String,
+        default: null
+    },
+    paymentMethodToken: {
+        type: String
+    },
 mobile:{
     type:String,
     required:true

@@ -12,6 +12,7 @@ const io = socketIo(server, {
   }
 });
 const cors=require('cors')
+const {scheduleBoostExpiryCheck}=require('./utils/cronjob')
 const connection=require('./connection/connection')
 const authRoutes=require('./routes/auth')
 const paymentRoutes=require('./routes/payment')
@@ -27,12 +28,20 @@ const communityRoutes=require('./routes/community')
 const userlistenings=require('./routes/userlistening')
 const requestRoutes=require('./routes/request')
 const messagesRoutes=require('./routes/messages')
+const {handleStripeConnectWebhook}=require('./controller/payment')
 require('dotenv').config();
 app.use(cors())
+
+app.post(
+  '/webhook',
+  express.raw({ type: 'application/json' }),
+  handleStripeConnectWebhook
+);
+
 app.use(express.json())
 // Socket.io middleware for authentication
 
-
+scheduleBoostExpiryCheck();
 // Store online users
 const onlineUsers = new Map();
 
@@ -311,7 +320,7 @@ app.get('/connect-billcom', async (req, res) => {
   });   
 
 
-  server.listen(process.env.PORT, () => {
+  server.listen(process.env.PORT, "0.0.0.0", () => {
     console.log(`Server listening on port ${process.env.PORT}`);
-    console.log(`Socket.io server is ready`);
-});
+  });
+  
