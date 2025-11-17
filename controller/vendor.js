@@ -603,11 +603,12 @@ return res.status(200).json({
 
 
 module.exports.rejectRequest=async(req,res)=>{
-  let {id}=req.body;
+  let {id,reason}=req.body;
   try{
 await requestModel.findByIdAndUpdate(id,{
   $set:{
-    status:"rejected"
+    status:"rejected",
+    rejectionReason:reason
   }
 })
 
@@ -704,3 +705,5 @@ module.exports.generateStripeOnboardingLink = async (req, res) => {
     });
   }
 };
+
+

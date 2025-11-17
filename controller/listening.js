@@ -2,7 +2,9 @@ const Listing = require('../models/listing');
 const Vendor = require('../models/vendor');
 const fs=require('fs')
 const CommunityPost = require('../models/communitypost');
-const {cloudinaryUploadImage}=require('../middleware/cloudinary')
+const {cloudinaryUploadImage}=require('../middleware/cloudinary');
+const requestModel = require('../models/request');
+const messageModel = require('../models/messages');
 
 
 
@@ -366,7 +368,9 @@ return res.status(200).json({
         });
       }
   
-     
+      const requests=await requestModel.find({approvedByVendor:false,status:'pending',vendor:vendorId})
+     const messages=await messageModel.find({vendor:vendorId,seenByVendor:false})
+
       const listings = await Listing.find({ vendor: vendorId });
       
    
@@ -437,6 +441,8 @@ return res.status(200).json({
       const dashboardData = {
         success: true,
         data: {
+          requests,
+          messages,
           vendor: {
             id: vendor._id,
             name: vendor.name,
@@ -618,6 +624,7 @@ return res.status(200).json({
   exports.getListingById = async (req, res) => {
     try {
       const { id } = req.params;
+     
       const vendorId = req.user._id || req.user.id;
   
       const listing = await Listing.findOne({ _id: id, vendor: vendorId })

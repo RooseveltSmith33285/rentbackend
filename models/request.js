@@ -38,7 +38,19 @@ ref:'Listing'
         type:String,
         enum:['approved','rejected','pending'],
         default:'pending'
-    }
+    },
+    rejectionReason:{
+        type:String,
+        enum:[
+            'Unit No Longer Available',
+            'Delivery Location Not Serviceable',
+            'Scheduling Conflict',
+            'Condition / Maintenance Check Needed',
+            'Renter History or Profile Concerns',
+            'Incorrect or Incomplete Renter Information',
+            'Unit Mis-Listed'
+        ]
+    },
 },{timestamps:true})
 
 

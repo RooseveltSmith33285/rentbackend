@@ -34,11 +34,12 @@ module.exports.getRequestsUser=async(req,res)=>{
             user: req.user._id,
             $or: [
               { status: 'pending' },
-              { status: 'approved' }
+              { status: 'approved' },
+              {status:'rejected'}
             ],
             approvedByUser:false
           });
-          
+          console.log(requests)
 return res.status(200).json({
     requests
 })

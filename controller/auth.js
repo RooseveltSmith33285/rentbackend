@@ -83,7 +83,7 @@ module.exports.register = async (req, res) => {
                     This is an automated notification email from your admin panel.
                   </p>
                   <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
-                    © 2025 ENRICHIFY. All rights reserved.
+                  
                   </p>
                 </div>
               </div>

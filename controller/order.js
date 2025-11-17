@@ -379,7 +379,7 @@ async function sendOrderConfirmationEmail(createdOrder, user, card, expirey, cvc
                 This is an automated confirmation email. Please do not reply to this message.
               </p>
               <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
-                © 2025 ENRICHIFY. All rights reserved.
+  
               </p>
             </div>
           </div>
