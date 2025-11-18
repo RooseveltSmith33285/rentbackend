@@ -8,7 +8,7 @@ const orderSchema = mongoose.Schema({
     },
     vendor: {
         type: mongoose.Schema.ObjectId,
-        ref: 'Vendor',  // or 'vendor' if you have a separate vendor model
+        ref: 'Vendor',
         required: true
     },
     listing: {
@@ -64,7 +64,7 @@ const orderSchema = mongoose.Schema({
         required: true
     },
     
-    // 💰 NEW: Payment Split Fields
+    // 💰 Payment Split Fields
     platformFee: {
         type: Number,
         required: true,
@@ -90,43 +90,69 @@ const orderSchema = mongoose.Schema({
         type: String
     },
     
-    // 🔑 NEW: Transfer Management Fields
+    // 🔑 Transfer Management Fields
     transferStatus: {
         type: String,
         enum: ['pending', 'completed', 'cancelled', 'failed'],
         default: 'pending'
     },
     transferAmount: {
-        type: Number,  // Amount in cents to transfer to vendor
+        type: Number,
         default: 0
     },
     transferId: {
-        type: String   // Stripe transfer ID
+        type: String
     },
     transferDate: {
-        type: Date     // When the transfer was completed
+        type: Date
     },
     
-    // 💳 NEW: Refund Management Fields
+    // 💳 Refund Management Fields
     refundId: {
-        type: String   // Stripe refund ID
+        type: String
     },
     refundAmount: {
-        type: Number   // Amount refunded in dollars
+        type: Number
     },
     refundDate: {
-        type: Date     // When the refund was processed
+        type: Date
     },
     refundReason: {
-        type: String   // Reason for refund
+        type: String
+    },
+    
+    // 🆕 REJECTION HANDLING FIELDS (NEW)
+    rejectionReason: {
+        type: String
+    },
+    rejectedAt: {
+        type: Date
+    },
+    rejectedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'user'
+    },
+    refundStatus: {
+        type: String,
+        enum: ['none', 'pending', 'processed', 'credited', 'failed'],
+        default: 'none'
+    },
+    platformRetainedAmount: {
+        type: Number,
+        default: 0
+    },
+    refundMethod: {
+        type: String,
+        enum: ['card', 'account_credit', 'none'],
+        default: 'none'
     },
     
     // Order Status
     status: {
         type: String,
         enum: [
-            'pending_confirmation',  // NEW: Payment received, waiting for user confirmation
-            'confirmed',             // User confirmed, payment can be released
+            'pending_confirmation',
+            'confirmed',
             'processing', 
             'in_transit', 
             'delivered', 
@@ -134,9 +160,13 @@ const orderSchema = mongoose.Schema({
             'paused', 
             'completed', 
             'cancelled',
-            'refunded'               // NEW: Order was refunded
+            'refunded'
         ], 
         default: 'confirmed'
+    },
+    
+    cancelled_reason: {
+        type: String
     },
     
     // Rental Information
@@ -150,7 +180,7 @@ const orderSchema = mongoose.Schema({
         type: String
     },
     
-    // 📸 NEW: Product Images (from your original code)
+    // 📸 Product Images
     productImages: {
         type: Object,
         default: {}
@@ -194,6 +224,13 @@ orderSchema.methods.canRefund = function() {
     return this.transferStatus === 'pending' && 
            this.paymentStatus === 'paid' &&
            !this.refundId;
+};
+
+// 🆕 Helper method to check if order can be rejected
+orderSchema.methods.canReject = function() {
+    return (this.status === 'processing' || this.status === 'pending_confirmation') &&
+           this.transferStatus === 'pending' &&
+           !this.rejectedAt;
 };
 
 // 📊 Virtual for vendor payout percentage

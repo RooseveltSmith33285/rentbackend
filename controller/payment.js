@@ -283,95 +283,98 @@ module.exports.resumeBilling = async (req, res) => {
 
 
 
+
 module.exports.handleStripeConnectWebhook = async (req, res) => {
-    const stripe = require('stripe')(process.env.STRIPE_LIVE);
-    const endpointSecret = "whsec_b82d718fbae44ab38035f9ce59915a1c5c7870d001c5d90f38cab27b8e52a15c";
-    
-    const sig = req.headers['stripe-signature'];
-    let event;
-    
-    try {
-      // Verify webhook signature
-      event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-    } catch (err) {
-      console.error('⚠️ Webhook signature verification failed:', err.message);
-      return res.status(400).send(`Webhook Error: ${err.message}`);
+  const stripe = require('stripe')(process.env.STRIPE_LIVE);
+  const endpointSecret = "whsec_1QTQ8XtkP0rFEVQbyWj282ebsc1WArsZ";
+  
+  const sig = req.headers['stripe-signature'];
+  let event;
+  
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+  } catch (err) {
+    console.error('⚠️ Webhook signature verification failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+  
+  console.log('✅ Webhook received:', event.type);
+  
+  try {
+    switch (event.type) {
+      case 'account.updated':
+        // Pass stripe instance to handler
+        await handleAccountUpdated(event.data.object, stripe);
+        break;
+      
+      case 'account.external_account.created':
+        await handleExternalAccountCreated(event.data.object);
+        break;
+      
+      case 'capability.updated':
+        await handleCapabilityUpdated(event.data.object, stripe);
+        break;
+      
+      case 'account.application.authorized':
+        await handleAccountAuthorized(event.data.object, stripe);
+        break;
+      
+      case 'account.application.deauthorized':
+        await handleAccountDeauthorized(event.data.object);
+        break;
+      
+      default:
+        console.log(`Unhandled event type: ${event.type}`);
     }
     
-    console.log('✅ Webhook received:', event.type);
+    res.json({ received: true });
     
-    // Handle different event types
-    try {
-      switch (event.type) {
-        // Account updated - Check if onboarding is complete
-        case 'account.updated':
-          await handleAccountUpdated(event.data.object);
-          break;
-        
-        // External account (bank account) added
-        case 'account.external_account.created':
-          await handleExternalAccountCreated(event.data.object);
-          break;
-        
-        // Capability updated (transfers capability is key)
-        case 'capability.updated':
-          await handleCapabilityUpdated(event.data.object);
-          break;
-        
-        // Account application completed
-        case 'account.application.authorized':
-          await handleAccountAuthorized(event.data.object);
-          break;
-        
-        // Account application deauthorized
-        case 'account.application.deauthorized':
-          await handleAccountDeauthorized(event.data.object);
-          break;
-        
-        default:
-          console.log(`Unhandled event type: ${event.type}`);
-      }
-      
-      // Return 200 to acknowledge receipt
-      res.json({ received: true });
-      
-    } catch (error) {
-      console.error('Error processing webhook:', error);
-      res.status(500).json({ error: 'Webhook processing failed' });
+  } catch (error) {
+    console.error('Error processing webhook:', error);
+    res.status(500).json({ error: 'Webhook processing failed' });
+  }
+};
+
+// ⚠️ KEY FIX: Fetch full account data from Stripe API
+async function handleAccountUpdated(accountFromWebhook, stripe) {
+  console.log('📝 Processing account.updated for:', accountFromWebhook.id);
+  
+  try {
+    // Find vendor by Stripe account ID
+    const vendor = await Vendor.findOne({ stripe_account_id: accountFromWebhook.id });
+    
+    if (!vendor) {
+      console.log('⚠️ No vendor found for account:', accountFromWebhook.id);
+      return;
     }
-  };
-
-
-  async function handleAccountUpdated(account) {
-    console.log('📝 Processing account.updated for:', account.id);
     
-    try {
-      // Find vendor by Stripe account ID
-      const vendor = await Vendor.findOne({ stripe_account_id: account.id });
-      
-      if (!vendor) {
-        console.log('⚠️ No vendor found for account:', account.id);
-        return;
-      }
-      
-      // Check if account is fully onboarded and ready for payments
-      const isFullyOnboarded = account.charges_enabled && 
-                               account.payouts_enabled &&
-                               account.details_submitted &&
-                               account.capabilities?.transfers === 'active';
-      
-      console.log('Account status:', {
-        vendorId: vendor._id,
-        accountId: account.id,
-        chargesEnabled: account.charges_enabled,
-        payoutsEnabled: account.payouts_enabled,
-        detailsSubmitted: account.details_submitted,
-        transfersCapability: account.capabilities?.transfers,
-        isFullyOnboarded
-      });
-      
-      // Update vendor in database
-      await Vendor.findByIdAndUpdate(vendor._id, {
+    // 🔥 CRITICAL: Fetch FULL account data from Stripe API
+    // Webhook events often have partial/stale data
+    console.log('🔄 Fetching fresh account data from Stripe API...');
+    const account = await stripe.accounts.retrieve(accountFromWebhook.id);
+    
+    // Check if account is fully onboarded
+    const isFullyOnboarded =
+    account.details_submitted === true &&
+    account.payouts_enabled === true &&
+    (account.requirements?.currently_due?.length === 0);
+  
+    console.log('============ FRESH ACCOUNT STATUS ============');
+    console.log('Vendor ID:', vendor._id);
+    console.log('Account ID:', account.id);
+    console.log('charges_enabled:', account.charges_enabled);
+    console.log('payouts_enabled:', account.payouts_enabled);
+    console.log('details_submitted:', account.details_submitted);
+    console.log('transfers_capability:', account.capabilities?.transfers);
+    console.log('isFullyOnboarded:', isFullyOnboarded);
+    console.log('Currently due:', account.requirements?.currently_due);
+    console.log('Eventually due:', account.requirements?.eventually_due);
+    console.log('=============================================');
+    
+    // Update vendor in database
+    const updatedVendor = await Vendor.findByIdAndUpdate(
+      vendor._id,
+      {
         $set: {
           stripe_connect_status: isFullyOnboarded,
           stripe_account_id: account.id,
@@ -382,26 +385,180 @@ module.exports.handleStripeConnectWebhook = async (req, res) => {
             transfersCapability: account.capabilities?.transfers,
             country: account.country,
             defaultCurrency: account.default_currency,
+            currentlyDue: account.requirements?.currently_due || [],
+            eventuallyDue: account.requirements?.eventually_due || [],
+            lastUpdated: new Date()
+          }
+        }
+      },
+      { new: true, runValidators: false }
+    );
+    
+    if (isFullyOnboarded) {
+      console.log('✅✅✅ VENDOR ONBOARDING COMPLETE ✅✅✅');
+      console.log('Vendor:', updatedVendor._id);
+      console.log('Status in DB:', updatedVendor.stripe_connect_status);
+      
+      // Optional: Send email notification
+      // await sendOnboardingCompleteEmail(vendor.email, vendor.name);
+    } else {
+      console.log('⏳ VENDOR ONBOARDING INCOMPLETE');
+      console.log('Vendor:', vendor._id);
+      console.log('Missing requirements:', account.requirements?.currently_due);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error handling account.updated:', error);
+    throw error;
+  }
+}
+
+async function handleExternalAccountCreated(externalAccount) {
+  console.log('🏦 External account created:', externalAccount.id);
+  
+  try {
+    const vendor = await Vendor.findOne({ 
+      stripe_account_id: externalAccount.account 
+    });
+    
+    if (vendor) {
+      console.log('✅ Bank account added for vendor:', vendor._id);
+      
+      await Vendor.findByIdAndUpdate(vendor._id, {
+        $set: {
+          'stripeAccountData.hasBankAccount': true,
+          'stripeAccountData.bankAccountLast4': externalAccount.last4,
+          'stripeAccountData.bankAccountStatus': externalAccount.status
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Error handling external_account.created:', error);
+  }
+}
+
+async function handleCapabilityUpdated(capability, stripe) {
+  console.log('⚡ Capability updated:', capability.id, 'Status:', capability.status);
+  
+  try {
+    const vendor = await Vendor.findOne({ 
+      stripe_account_id: capability.account 
+    });
+    
+    if (vendor) {
+      await Vendor.findByIdAndUpdate(vendor._id, {
+        $set: {
+          [`stripeAccountData.${capability.id}Capability`]: capability.status
+        }
+      });
+      
+      if (capability.id === 'transfers' && capability.status === 'active') {
+        console.log('✅ TRANSFERS CAPABILITY ACTIVE for vendor:', vendor._id);
+        
+        // 🔥 Also fetch and update full account when transfers become active
+        console.log('🔄 Fetching full account data after transfers activated...');
+        const account = await stripe.accounts.retrieve(capability.account);
+        
+        const isFullyOnboarded = account.charges_enabled && 
+                                 account.payouts_enabled &&
+                                 account.details_submitted &&
+                                 account.capabilities?.transfers === 'active';
+        
+        await Vendor.findByIdAndUpdate(vendor._id, {
+          $set: {
+            stripe_connect_status: isFullyOnboarded,
+            stripeAccountData: {
+              chargesEnabled: account.charges_enabled,
+              payoutsEnabled: account.payouts_enabled,
+              detailsSubmitted: account.details_submitted,
+              transfersCapability: account.capabilities?.transfers,
+              country: account.country,
+              defaultCurrency: account.default_currency,
+              currentlyDue: account.requirements?.currently_due || [],
+              eventuallyDue: account.requirements?.eventually_due || [],
+              lastUpdated: new Date()
+            }
+          }
+        });
+        
+        console.log('✅ Full account status updated. Onboarded:', isFullyOnboarded);
+      }
+    }
+  } catch (error) {
+    console.error('Error handling capability.updated:', error);
+  }
+}
+
+async function handleAccountAuthorized(application, stripe) {
+  console.log('✅ Account authorized:', application.account);
+  
+  try {
+    const vendor = await Vendor.findOne({ 
+      stripe_account_id: application.account 
+    });
+    
+    if (vendor) {
+      await Vendor.findByIdAndUpdate(vendor._id, {
+        $set: {
+          'stripeAccountData.applicationStatus': 'authorized'
+        }
+      });
+      console.log('✅ Application authorized for vendor:', vendor._id);
+      
+      // 🔥 Fetch full account status after authorization
+      console.log('🔄 Fetching full account data after authorization...');
+      const account = await stripe.accounts.retrieve(application.account);
+      
+      const isFullyOnboarded = account.charges_enabled && 
+                               account.payouts_enabled &&
+                               account.details_submitted &&
+                               account.capabilities?.transfers === 'active';
+      
+      await Vendor.findByIdAndUpdate(vendor._id, {
+        $set: {
+          stripe_connect_status: isFullyOnboarded,
+          stripeAccountData: {
+            chargesEnabled: account.charges_enabled,
+            payoutsEnabled: account.payouts_enabled,
+            detailsSubmitted: account.details_submitted,
+            transfersCapability: account.capabilities?.transfers,
+            country: account.country,
+            defaultCurrency: account.default_currency,
+            currentlyDue: account.requirements?.currently_due || [],
+            eventuallyDue: account.requirements?.eventually_due || [],
             lastUpdated: new Date()
           }
         }
       });
       
-      if (isFullyOnboarded) {
-        console.log('✅ Vendor onboarding COMPLETE:', vendor._id);
-        
-        // Optional: Send email notification to vendor
-        // await sendOnboardingCompleteEmail(vendor.email, vendor.name);
-      } else {
-        console.log('⏳ Vendor onboarding INCOMPLETE:', vendor._id);
-        console.log('Missing requirements:', account.requirements?.currently_due);
-      }
-      
-    } catch (error) {
-      console.error('Error handling account.updated:', error);
-      throw error;
+      console.log('✅ Full account status updated. Onboarded:', isFullyOnboarded);
     }
+  } catch (error) {
+    console.error('Error handling account.application.authorized:', error);
   }
+}
+
+async function handleAccountDeauthorized(application) {
+  console.log('⚠️ Account deauthorized:', application.account);
+  
+  try {
+    const vendor = await Vendor.findOne({ 
+      stripe_account_id: application.account 
+    });
+    
+    if (vendor) {
+      await Vendor.findByIdAndUpdate(vendor._id, {
+        $set: {
+          stripe_connect_status: false,
+          'stripeAccountData.applicationStatus': 'deauthorized'
+        }
+      });
+      console.log('⚠️ Application deauthorized for vendor:', vendor._id);
+    }
+  } catch (error) {
+    console.error('Error handling account.application.deauthorized:', error);
+  }
+}
   
   async function handleExternalAccountCreated(externalAccount) {
     console.log('🏦 External account created:', externalAccount.id);

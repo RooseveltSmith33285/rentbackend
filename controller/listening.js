@@ -359,7 +359,10 @@ return res.status(200).json({
       const vendorId = req.user._id?req.user._id:req.user.id; 
       console.log(vendorId)
 
-      const vendor = await Vendor.findById(vendorId).select('-password');
+      const vendor = await Vendor.findById(vendorId)
+      .select('-password')
+      .select('stripe_connect_status');
+    
       
       if (!vendor) {
         return res.status(404).json({
@@ -450,7 +453,8 @@ return res.status(200).json({
             businessName: vendor.businessName,
             subscription: vendor.subscription,
             boostCredits: vendor.boostCredits,
-            isVerified: vendor.isVerified
+            isVerified: vendor.isVerified,
+            stripe_connect_status:vendor.stripe_connect_status
           },
           stats: {
             listings: listingStats,

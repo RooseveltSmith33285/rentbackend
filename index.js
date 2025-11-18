@@ -29,6 +29,7 @@ const userlistenings=require('./routes/userlistening')
 const requestRoutes=require('./routes/request')
 const messagesRoutes=require('./routes/messages')
 const {handleStripeConnectWebhook}=require('./controller/payment')
+const orderCron=require('./utils/order')
 require('dotenv').config();
 app.use(cors())
 
@@ -319,6 +320,8 @@ app.get('/connect-billcom', async (req, res) => {
     }
   });   
 
+
+  orderCron
 
   server.listen(process.env.PORT, "0.0.0.0", () => {
     console.log(`Server listening on port ${process.env.PORT}`);

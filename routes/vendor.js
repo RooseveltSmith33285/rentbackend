@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
 const {cloudinaryUploadImage}=require('../middleware/cloudinary')
-const {approveRequest,rejectRequest}=require('../controller/vendor')
-const {sendMessage,getConversation, generateStripeOnboardingLink ,getVendorRequests,getUser,seenMessages,getConversations,getMessages}=require('../controller/vendor')
+const {approveRequest,rejectRequest,checkStripeAccountStatus}=require('../controller/vendor')
+const {sendMessage,getConversation,renewListing, generateStripeOnboardingLink ,getVendorRequests,getUser,seenMessages,getConversations,getMessages}=require('../controller/vendor')
 const fs = require('fs');
 const {
   createListing,
@@ -108,6 +108,7 @@ router.post('/approveRequest', upload.fields([
 
 
 router.patch('/rejectRequest',rejectRequest)
-
+router.post('/renewListing',renewListing)
+router.post('/checkStripeAccountStatus',checkStripeAccountStatus)
 router.get('/generateStripeOnboardingLink',Auth,generateStripeOnboardingLink)
 module.exports = router;

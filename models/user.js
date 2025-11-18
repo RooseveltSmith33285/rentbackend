@@ -37,6 +37,10 @@ billingPaused:{
 deletedUser:{
     type:Boolean,
     default:false
+},
+credit: {
+    type: Number,  // Change from String to Number
+    default: 0
 }
 },{
     timestamps:true
