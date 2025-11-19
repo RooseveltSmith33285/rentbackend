@@ -842,7 +842,7 @@ module.exports.renewListing = async (req, res) => {
     // Recalculate visibility score
     updatedListing.calculateVisibilityScore();
     await updatedListing.save();
-
+await requestModel.deleteMany({listing:listingId,status:'rejected'})
     return res.status(200).json({
       success: true,
       message: "Listing renewed successfully",

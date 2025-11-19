@@ -138,8 +138,7 @@ exports.getVendorListings = async (req, res) => {
       
       // Find listing and verify ownership
       const listing = await Listing.findOne({
-        _id: req.params.id,
-        vendor: id
+        _id: req.params.id
       });
   
       if (!listing) {
@@ -628,13 +627,13 @@ return res.status(200).json({
   exports.getListingById = async (req, res) => {
     try {
       const { id } = req.params;
-     
+ 
       const vendorId = req.user._id || req.user.id;
   
-      const listing = await Listing.findOne({ _id: id, vendor: vendorId })
+      const listing = await Listing.findOne({ _id: id })
         .populate('vendor', 'name businessName email')
         .lean();
-  
+
       if (!listing) {
         return res.status(404).json({
           success: false,

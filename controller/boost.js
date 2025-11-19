@@ -6,7 +6,7 @@ exports.createBoost = async (req, res) => {
   const stripe = require('stripe')(process.env.STRIPE_LIVE);   
     
   try {
-    const { listingId, amount, duration, paymentMethodId } = req.body;
+    const { listingId, amount, duration, paymentMethodId ,estimatedReach} = req.body;
 
 
     if (!listingId || !amount || !duration || !paymentMethodId) {
@@ -82,6 +82,7 @@ exports.createBoost = async (req, res) => {
       amount,
       duration,
       startDate,
+      est_reach:estimatedReach,
       endDate,
       paymentIntentId: paymentIntent.id,
       paymentStatus: 'completed',
@@ -98,6 +99,7 @@ exports.createBoost = async (req, res) => {
     listing.visibility.isBoosted = true;
     listing.visibility.boostEndDate = endDate;
     listing.visibility.boostAmount = amount;
+    listing.visibility.est_react=estimatedReach
     
    
     listing.visibility.visibilityScore = Math.min(100, (listing.visibility.visibilityScore || 50) + 30);

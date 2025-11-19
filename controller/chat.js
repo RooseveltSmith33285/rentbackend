@@ -1,4 +1,5 @@
 const messageModel = require("../models/messages");
+const orderModel = require("../models/order");
 
 exports.sendMessage=async(req,res)=>{
     let {...data}=req.body;
@@ -39,21 +40,144 @@ return res.status(400).json({
     }
 }
 
-exports.getConversations=async(req,res)=>{
-    try{
-        let id=req?.user?._id?req?.user?._id:req.user.id
+// exports.getConversations=async(req,res)=>{
+//     try{
+//         let id=req?.user?._id?req?.user?._id:req.user.id
 
-        let conversations=await messageModel.find({user:id}).populate('vendor')
+//         let conversations=await messageModel.find({user:id}).populate('vendor')
+//         return res.status(200).json({
+//             conversations
+//         })
+//     }catch(e){
+//         console.log(e.message)
+//         return res.status(400).json({
+//             error:"Error occured while trying to fetch conversations"
+//         })
+//     }
+// }
+
+
+exports.getConversations = async (req, res) => {
+    try {
+        const userId = req?.user?._id ? req?.user?._id : req.user.id;
+
+        console.log('=== Getting Conversations ===');
+        console.log('User ID:', userId);
+
+        // Get all existing conversations for the user
+        let conversations = await messageModel
+            .find({ user: userId })
+            .populate('vendor')
+            .lean();
+
+        console.log('Existing conversations count:', conversations.length);
+        console.log('Existing conversation vendor IDs:', 
+            conversations.map(c => c.vendor?._id?.toString())
+        );
+
+        // Get all vendors the user has rented from (orders with specific statuses)
+        const userOrders = await orderModel
+            .find({
+                user: userId,
+                status: { 
+                    $in: [
+                        'confirmed', 
+                        'processing', 
+                        'in_transit', 
+                        'delivered', 
+                        'active', 
+                        'paused', 
+                        'completed'
+                    ] 
+                }
+            })
+            .select('vendor status')
+            .lean();
+
+        console.log('Orders found:', userOrders.length);
+        console.log('Order details:', userOrders.map(o => ({
+            vendor: o.vendor?.toString(),
+            status: o.status
+        })));
+
+        // Extract unique vendor IDs from orders
+        const orderVendorIds = [...new Set(
+            userOrders
+                .map(order => order.vendor?.toString())
+                .filter(Boolean)
+        )];
+
+        console.log('Unique vendor IDs from orders:', orderVendorIds);
+
+        // Get existing conversation vendor IDs
+        const existingConversationVendorIds = conversations
+            .map(conv => conv.vendor?._id?.toString())
+            .filter(Boolean);
+
+        // Find vendors that user has orders with but no conversations
+        const vendorsWithoutConversations = orderVendorIds.filter(
+            vendorId => !existingConversationVendorIds.includes(vendorId)
+        );
+
+        console.log('Vendors needing conversations:', vendorsWithoutConversations);
+
+        // Create conversations for vendors without existing conversations
+        if (vendorsWithoutConversations.length > 0) {
+            const newConversations = await Promise.all(
+                vendorsWithoutConversations.map(async (vendorId) => {
+                    try {
+                        console.log(`Creating conversation for vendor: ${vendorId}`);
+                        
+                        // Create new conversation
+                        const newConversation = await messageModel.create({
+                            user: userId,
+                            vendor: vendorId,
+                            message: 'hi',
+                            sendBy: 'user',
+                            seenByUser: true,
+                            seenByVendor: false,
+                            createdAt: new Date()
+                        });
+                        console.log(`✓ Conversation created with ID: ${newConversation._id}`);
+                        
+                        // Populate vendor details
+                        const populatedConv = await messageModel
+                            .findById(newConversation._id)
+                            .populate('vendor')
+                            .lean();
+                        
+                        return populatedConv;
+                    } catch (error) {
+                        console.error(`✗ Error creating conversation for vendor ${vendorId}:`, error.message);
+                        return null;
+                    }
+                })
+            );
+
+            // Filter out null values and add to conversations
+            const validNewConversations = newConversations.filter(Boolean);
+            console.log('New conversations created:', validNewConversations.length);
+            
+            conversations = [...conversations, ...validNewConversations];
+        }
+
+        console.log('=== Final conversation count:', conversations.length, '===\n');
+
         return res.status(200).json({
+            success: true,
+            count: conversations.length,
             conversations
-        })
-    }catch(e){
-        console.log(e.message)
-        return res.status(400).json({
-            error:"Error occured while trying to fetch conversations"
-        })
+        });
+
+    } catch (e) {
+        console.error('Error in getConversations:', e);
+        return res.status(500).json({
+            success: false,
+            error: "Error occurred while trying to fetch conversations",
+            message: e.message
+        });
     }
-}
+};
 
 exports.getConversation=async(req,res)=>{
     const {vendor}=req.params;

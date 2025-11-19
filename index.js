@@ -46,6 +46,16 @@ scheduleBoostExpiryCheck();
 // Store online users
 const onlineUsers = new Map();
 
+const getActiveRentersCount = () => {
+  let count = 0;
+  for (let [userId, userData] of onlineUsers.entries()) {
+    if (userData.userType === 'user') {
+      count++;
+    }
+  }
+  return count;
+};
+
 // Socket.io connection handler
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
@@ -68,9 +78,22 @@ io.on('connection', (socket) => {
       userType: userType,
       isOnline: true
     });
+
+    // If a renter joined, send updated count to all vendors
+    if (userType === 'user') {
+      const count = getActiveRentersCount();
+      io.emit('activeRentersCount', count);
+    }
   });
 
   // Handle new message - ONLY for real-time delivery
+
+  socket.on('getActiveRenters', () => {
+    const count = getActiveRentersCount();
+    socket.emit('activeRentersCount', count);
+    console.log('Sent active renters count:', count);
+    console.log('Current online users:', Array.from(onlineUsers.entries()));
+  });
   // Handle new message - ONLY for real-time delivery
 socket.on('sendMessage', async (data) => {
   try {

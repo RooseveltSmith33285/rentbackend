@@ -55,62 +55,64 @@ exports.createPost = async (req, res) => {
 
 
 
-  exports.getFeed = async (req, res) => {
-    try {
-      const { page = 1, limit = 10, filter = 'all' } = req.query;
-  
-      let feedItems = [];
-  
-      if (filter === 'all' || filter === 'posts') {
-        const posts = await CommunityPost.find({ isActive: true })
-        .populate('vendor', 'name businessName')
-        .populate('linkedListing', 'title pricing')
-        .populate('comments.user', 'name businessName')
-        .sort({ createdAt: -1 })
-        .limit(limit * 1)
-        .skip((page - 1) * limit);
-        
-        feedItems = [...feedItems, ...posts.map(p => ({ ...p.toObject(), itemType: 'post' }))];
-      }
-  
-      if (filter === 'all' || filter === 'listings') {
-        const listings = await Listing.find({ status: 'active' })
-          .populate('vendor', 'name businessName')
-          .sort({ 'visibility.visibilityScore': -1 })
-          .limit(limit * 1)
-          .skip((page - 1) * limit);
-        
-        feedItems = [...feedItems, ...listings.map(l => ({ ...l.toObject(), itemType: 'listing' }))];
-      }
-  
-  
-      feedItems.sort((a, b) => {
-        const aScore = a.visibility?.visibilityScore || 0;
-        const bScore = b.visibility?.visibilityScore || 0;
-        return bScore - aScore;
-      });
-  
+exports.getFeed = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, filter = 'all' } = req.query;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+
+    // Build query based on filter
+    let query = { isActive: true };
     
-
-      console.log(JSON.stringify(feedItems))
-      res.status(200).json({
-        success: true,
-        feedItems: feedItems.slice(0, limit),
-        page,
-        hasMore: feedItems.length === limit
-      });
-  
-    } catch (error) {
-      console.error('Get feed error:', error);
-      res.status(500).json({
-        error: 'Failed to fetch feed'
-      });
+    // If filter is a specific post type, add it to query
+    const validTypes = ['announcement', 'tip', 'update', 'promotion'];
+    if (filter !== 'all' && validTypes.includes(filter)) {
+      query.type = filter;
     }
-  };
 
-  
+    // Count total documents matching the query
+    const totalItems = await CommunityPost.countDocuments(query);
+    
+    // Calculate pagination
+    const totalPages = Math.ceil(totalItems / limitNum);
+    const skip = (pageNum - 1) * limitNum;
 
+    // Fetch posts with filter and pagination applied at database level
+    const posts = await CommunityPost.find(query)
+      .populate('vendor', 'name businessName')
+      .populate('linkedListing', 'title pricing images')
+      .populate('comments.user', 'name businessName')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .lean();
 
+    // Add itemType to each post
+    const feedItems = posts.map(p => ({
+      ...p,
+      itemType: 'post'
+    }));
+
+    // Calculate hasMore
+    const hasMore = pageNum < totalPages;
+
+    res.status(200).json({
+      success: true,
+      feedItems,
+      currentPage: pageNum,
+      totalPages,
+      totalItems,
+      hasMore
+    });
+
+  } catch (error) {
+    console.error('Get feed error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch feed'
+    });
+  }
+};
 
   exports.getPost = async (req, res) => {
     try {

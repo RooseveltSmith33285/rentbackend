@@ -63,6 +63,7 @@ const listingSchema = new mongoose.Schema({
       type: Boolean,
       default: false
     },
+    est_react:Number,
     boostEndDate: Date,
     boostAmount: Number,
     visibilityScore: {

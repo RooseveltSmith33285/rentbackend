@@ -30,6 +30,9 @@ const boostSchema = new mongoose.Schema({
     type: Date,
     required: true
   },
+  est_reach:{
+type:Number
+  },
   status: {
     type: String,
     enum: ['active', 'completed', 'cancelled'],
