@@ -6,9 +6,11 @@ const fs=require('fs')
 
 
 const orderModel = require('../models/order');
+const listingModel=require('../models/listing')
 const Product = require('../models/products');
 const userModel=require('../models/user');
 const adminModel = require('../models/admin');
+const vendor=require('../models/vendor')
 
 module.exports.getUsers = async (req, res) => {
     try {
@@ -75,6 +77,121 @@ module.exports.getUsers = async (req, res) => {
         });
     }
 }
+
+
+
+module.exports.getVendors = async (req, res) => {
+    try {
+       
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const search = req.query.search || '';
+        const status = req.query.status || 'all';
+        
+       
+        const skip = (page - 1) * limit;
+       
+   // Remove the deletedUser filter or make it optional
+
+// OR if you want to keep it but make it work with missing fields:
+let searchQuery = { 
+    $or: [
+        { deletedUser: { $exists: false } },
+        { deletedUser: false }
+    ]
+};
+
+        if (search) {
+            searchQuery.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { email: { $regex: search, $options: 'i' } },
+                { mobile: { $regex: search, $options: 'i' } }
+            ];
+        }
+        
+       
+        if (status !== 'all') {
+            if (status === 'active') {
+                searchQuery.isActive = true;  // Use isActive from your vendor model
+            } else if (status === 'suspended') {
+                searchQuery.isActive = false;  // Use isActive from your vendor model
+            }
+        }
+        
+       
+        const totalVendors = await vendor.countDocuments(searchQuery);
+        
+       
+        const vendors = await vendor.find(searchQuery)
+        .sort({ createdAt: -1 }) 
+        .skip(skip)
+        .limit(limit)
+        .select('-password')
+        .lean();
+        const vendorIds = vendors.map(v => v._id);
+
+        const revenueData = await orderModel.aggregate([
+            {
+                $match: {
+                    vendor: { $in: vendorIds },
+                    status: 'confirmed' 
+                }
+            },
+            {
+                $group: {
+                    _id: '$vendor',
+                    totalRevenue: { $sum: '$vendorPayout' }, // Sum of vendor payouts
+                    totalOrders: { $sum: 1 }
+                }
+            }
+        ]);
+        
+        // Create a map for quick lookup
+        const revenueMap = {};
+        revenueData.forEach(item => {
+            revenueMap[item._id.toString()] = {
+                totalRevenue: item.totalRevenue || 0,
+                totalOrders: item.totalOrders || 0
+            };
+        });
+        
+       
+        vendors.forEach(v => {
+            const vendorId = v._id.toString();
+            const revenue = revenueMap[vendorId] || { totalRevenue: 0, totalOrders: 0 };
+            
+       
+            if (!v.stats) {
+                v.stats = {};
+            }
+            v.stats.totalRevenue = revenue.totalRevenue;
+            v.stats.completedOrders = revenue.totalOrders;
+        });
+        
+     
+        const totalPages = Math.ceil(totalVendors / limit);
+        const hasNext = page < totalPages;
+        const hasPrev = page > 1;
+        
+        return res.status(200).json({
+            vendors,
+            pagination: {
+                currentPage: page,
+                totalPages,
+                totalVendors,
+                limit,
+                hasNext,
+                hasPrev
+            }
+        });
+
+    } catch (e) {
+        console.log(e.message);
+        return res.status(400).json({
+            error: "Facing issue while fetching users"
+        });
+    }
+}
 module.exports.updateUser=async(req,res)=>{
     let {id}=req.params;
     let {...data}=req.body;
@@ -98,62 +215,15 @@ return res.status(400).json({
 
 
 
-module.exports.deleteUser=async(req,res)=>{
+module.exports.updateVendor=async(req,res)=>{
     let {id}=req.params;
-   
-const stripe = require('stripe')(process.env.STRIPE_LIVE);
+    let {...data}=req.body;
     try{
-        let user=await userModel.findOne({_id:id})
-      await userModel.findByIdAndUpdate(id,{
-        $set:{
-            email:user.email+'deletedUser'+id,
-            deletedUser:true
-        }
-      })
-
-      let orders = await orderModel.find({
-            
-        status: { $in: ['active', 'pending'] }
-    });
-    orders=orders?.filter(u=>u?.user?.toString()==req?.user?._id?.toString())
-
-    if (orders.length === 0) {
-        return res.status(200).json({
-            message:"User deleted sucessfully"
-        })
-    }
-
-    
-    const pausePromises = orders.map(async(order)=>{
-        
-          
-            if (!order.subscriptionId) {
-                console.log(`Order ${order._id} has no subscription ID`);
-                return { orderId: order._id, success: false, error: 'No subscription ID' };
-            }
-
-            const subscription = await stripe.subscriptions.update(
-                order.subscriptionId,
-                {
-                    pause_collection: {
-                        behavior: 'void',
-                    },
-                }
-            );
-
-         
-            await orderModel.findByIdAndUpdate(order._id, {
-                status: 'paused',
-                pausedAt: new Date()
-            });
-
-    })
-      
-
-        
-     
+       await vendor.findByIdAndUpdate(id,{
+        $set:data
+       })
 return res.status(200).json({
-    message:"User deleted sucessfully"
+    message:"Vendor updated sucessfully"
 })
 
     }catch(e){
@@ -165,109 +235,352 @@ return res.status(400).json({
 }
 
 
-module.exports.updateProduct=async(req,res)=>{
-    let {...data}=req.body;
-    let {id}=req.params;
-    try{
+
+
+module.exports.deleteUser = async (req, res) => {
+    const { id } = req.params;
+    const stripe = require('stripe')(process.env.STRIPE_LIVE);
+    
+    try {
+        // Check if user exists
+        const user = await userModel.findOne({ _id: id });
+        
+        if (!user) {
+            return res.status(404).json({
+                error: "User not found"
+            });
+        }
+
+        // Update user to mark as deleted
+        await userModel.findByIdAndUpdate(id, {
+            $set: {
+                email: user.email + '_deletedUser_' + id,
+                 status:'inactive'
+            }
+        });
+
+        // Find user's confirmed orders
+        let orders = await orderModel.find({
+            user: id, // Use the id parameter, not req.user._id
+            status: { $in: ['confirmed'] }
+        });
+
+        // If no orders, return success
+        if (orders.length === 0) {
+            return res.status(200).json({
+                message: "User deleted successfully"
+            });
+        }
+
+        // Pause all subscriptions
+        const pausePromises = orders.map(async (order) => {
+            try {
+                if (!order.subscriptionId) {
+                    console.log(`Order ${order._id} has no subscription ID`);
+                    return { orderId: order._id, success: false, error: 'No subscription ID' };
+                }
+
+                // Cancel/pause subscription in Stripe
+                try {
+                    await stripe.subscriptions.update(order.subscriptionId, {
+                        pause_collection: {
+                            behavior: 'void'
+                        }
+                    });
+                } catch (stripeError) {
+                    console.error(`Failed to pause Stripe subscription ${order.subscriptionId}:`, stripeError.message);
+                }
+
+                // Update order status in database
+                await orderModel.findByIdAndUpdate(order._id, {
+                    status: 'paused',
+                    pausedAt: new Date()
+                });
+
+                return { orderId: order._id, success: true };
+            } catch (error) {
+                console.error(`Error processing order ${order._id}:`, error.message);
+                return { orderId: order._id, success: false, error: error.message };
+            }
+        });
+
+        // Wait for all pause operations to complete
+        const results = await Promise.all(pausePromises);
+
+        // Check results
+        const successCount = results.filter(r => r.success).length;
+        const failCount = results.filter(r => !r.success).length;
+
+        console.log(`Paused ${successCount} subscriptions, ${failCount} failed`);
+
+        return res.status(200).json({
+            message: "User deleted successfully",
+            subscriptionsPaused: successCount,
+            subscriptionsFailed: failCount,
+            details: results
+        });
+
+    } catch (e) {
+        console.error('Delete user error:', e.message);
+        return res.status(500).json({
+            error: "Error while deleting user",
+            details: e.message
+        });
+    }
+};
+
+
+
+
+
+
+module.exports.deleteVendor = async (req, res) => {
+    const { id } = req.params;
+    const stripe = require('stripe')(process.env.STRIPE_LIVE);
+    
+    try {
+        // Check if user exists
+        const vendorfound = await vendor.findOne({ _id: id });
+        
+        if (!vendorfound) {
+            return res.status(404).json({
+                error: "Vendor not found"
+            });
+        }
+
+        // Update user to mark as deleted
+        await vendor.findByIdAndUpdate(id, {
+            $set: {
+                email: vendorfound.email + '_deletedVendor_' + id,
+                status:'inactive'
+            }
+        });
+
+        // Find user's confirmed orders
+        let orders = await orderModel.find({
+            user: id, // Use the id parameter, not req.user._id
+            status: { $in: ['processing'] }
+        });
+
+        // If no orders, return success
+        if (orders.length === 0) {
+            return res.status(200).json({
+                message: "Vendor deleted successfully"
+            });
+        }
+
+        // Pause all subscriptions
+        const pausePromises = orders.map(async (order) => {
+            try {
+                if (!order.subscriptionId) {
+                    console.log(`Order ${order._id} has no subscription ID`);
+                    return { orderId: order._id, success: false, error: 'No subscription ID' };
+                }
+
+                // Cancel/pause subscription in Stripe
+                try {
+                    await stripe.subscriptions.update(order.subscriptionId, {
+                        pause_collection: {
+                            behavior: 'void'
+                        }
+                    });
+                } catch (stripeError) {
+                    console.error(`Failed to pause Stripe subscription ${order.subscriptionId}:`, stripeError.message);
+                }
+
+                // Update order status in database
+                await orderModel.findByIdAndUpdate(order._id, {
+                    status: 'paused',
+                    pausedAt: new Date()
+                });
+
+                await listingModel.updateMany({vendor:id},{
+                    $set:{
+                        status:"inactive"
+                    }
+                })
+                return { orderId: order._id, success: true };
+            } catch (error) {
+                console.error(`Error processing order ${order._id}:`, error.message);
+                return { orderId: order._id, success: false, error: error.message };
+            }
+        });
+
+        // Wait for all pause operations to complete
+        const results = await Promise.all(pausePromises);
+
+        // Check results
+        const successCount = results.filter(r => r.success).length;
+        const failCount = results.filter(r => !r.success).length;
+
+        console.log(`Paused ${successCount} subscriptions, ${failCount} failed`);
+
+        return res.status(200).json({
+            message: "User deleted successfully",
+            subscriptionsPaused: successCount,
+            subscriptionsFailed: failCount,
+            details: results
+        });
+
+    } catch (e) {
+        console.error('Delete user error:', e.message);
+        return res.status(500).json({
+            error: "Error while deleting user",
+            details: e.message
+        });
+    }
+};
+
+module.exports.updateProduct = async (req, res) => {
+    let { ...data } = req.body;
+    let { id } = req.params;
+ 
+    try {
+        // Handle image upload if present
         if (req.file) {
             console.log('File received:', req.file.path);
           
             const cloudinaryResult = await cloudinaryUploadImage(req.file.path);
             
             if (cloudinaryResult.url) {
-             
-                data.photo = cloudinaryResult.url;
+                // Store in images array format to match your schema
+                data.images = [{
+                    url: cloudinaryResult.url,
+                    publicId: cloudinaryResult.public_id || ''
+                }];
                 console.log('Image uploaded to Cloudinary:', cloudinaryResult.url);
                 
-                
+                // Delete local file
                 fs.unlinkSync(req.file.path);
             } else {
                 throw new Error('Failed to upload image to Cloudinary');
             }
         }
         
-       
-        const newProduct = await Product.findByIdAndUpdate(id,{
-            $set:data
+        // Parse pricing if it comes as separate fields
+        if (data['pricing[rentPrice]'] || data['pricing[buyPrice]']) {
+            data.pricing = {
+                rentPrice: parseFloat(data['pricing[rentPrice]']) || 0,
+                buyPrice: parseFloat(data['pricing[buyPrice]']) || 0
+            };
+            delete data['pricing[rentPrice]'];
+            delete data['pricing[buyPrice]'];
+        }
+
+        // Parse specifications if they exist
+        const specifications = {};
+        Object.keys(data).forEach(key => {
+            if (key.startsWith('specifications[')) {
+                const specKey = key.match(/specifications\[(.*?)\]/)[1];
+                specifications[specKey] = data[key];
+                delete data[key];
+            }
         });
+        if (Object.keys(specifications).length > 0) {
+            data.specifications = specifications;
+        }
         
-        return res.status(201).json({
+        // Update product and return the UPDATED document with vendor populated
+        const updatedProduct = await listingModel.findByIdAndUpdate(
+            id,
+            { $set: data },
+            { new: true, runValidators: true } // new: true returns updated document
+        ).populate('vendor', 'name businessName email'); // Populate vendor details
+        
+        if (!updatedProduct) {
+            return res.status(404).json({
+                success: false,
+                error: "Product not found"
+            });
+        }
+        
+        return res.status(200).json({
             success: true,
-            message: "Product created successfully",
-            product: newProduct
+            message: "Product updated successfully",
+            product: updatedProduct
         });
-    }catch(e){
-        console.log(e.message)
+    } catch (e) {
+        console.log('Error updating product:', e.message);
         return res.status(400).json({
-            error:"Facing issue while updating users"
-        })
+            success: false,
+            error: "Facing issue while updating product: " + e.message
+        });
     }
 }
 
 
-
 module.exports.getProducts = async (req, res) => {
+  
     try {
-       
+
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const search = req.query.search || '';
         const status = req.query.status || 'all';
-        const combo = req.query.combo || 'all';
+        const category = req.query.category || 'all';
+        const condition = req.query.condition || 'all';
         const price = req.query.price || 'all';
         
-    
         const skip = (page - 1) * limit;
         
-       
         let searchQuery = {};
         
-    
+        // Search functionality
         if (search) {
             searchQuery.$or = [
-                { name: { $regex: search, $options: 'i' } },
-                { key_features: { $elemMatch: { $regex: search, $options: 'i' } } }
+                { title: { $regex: search, $options: 'i' } },
+                { brand: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } }
             ];
         }
       
+        // Filter by status
         if (status !== 'all') {
-            searchQuery.stock_status = status;
+            searchQuery.status = status;
         }
 
-      
-        if (combo !== 'all') {
-            searchQuery.combo = combo === 'combo';
+        // Filter by category
+        if (category !== 'all') {
+            searchQuery.category = category;
         }
 
-   
+        // Filter by condition
+        if (condition !== 'all') {
+            searchQuery.condition = condition;
+        }
+
+        // Filter by price range (using rentPrice)
         if (price !== 'all') {
             switch (price) {
                 case 'low':
-                    searchQuery.monthly_price = { $lte: 50 };
+                    searchQuery['pricing.rentPrice'] = { $lte: 50 };
                     break;
                 case 'medium':
-                    searchQuery.monthly_price = { $gt: 50, $lte: 150 };
+                    searchQuery['pricing.rentPrice'] = { $gt: 50, $lte: 150 };
                     break;
                 case 'high':
-                    searchQuery.monthly_price = { $gt: 150 };
+                    searchQuery['pricing.rentPrice'] = { $gt: 150 };
                     break;
             }
         }
         
-      
-        const totalProducts = await Product.countDocuments(searchQuery);
+        // Count total products
+        const totalProducts = await listingModel.countDocuments(searchQuery);
         
-      
-        const products = await Product.find(searchQuery)
+        // Fetch products with pagination
+        const products = await listingModel.find(searchQuery)
+            .populate('vendor', 'name businessName email')
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit);
         
-
         const totalPages = Math.ceil(totalProducts / limit);
         const hasNext = page < totalPages;
         const hasPrev = page > 1;
+
+        console.log("PRODUCTS ARE")
         
+     console.log(products)
         return res.status(200).json({
             products,
             pagination: {
@@ -288,48 +601,69 @@ module.exports.getProducts = async (req, res) => {
     }
 }
 
+
 module.exports.getOrders = async (req, res) => {
     try {
-      
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const search = req.query.search || '';
         const status = req.query.status || 'all';
+        const paymentStatus = req.query.paymentStatus || 'all';
+        const transferStatus = req.query.transferStatus || 'all';
         
-      
         const skip = (page - 1) * limit;
         
-       
         let searchQuery = {};
         
+        // Search across multiple fields
         if (search) {
             searchQuery.$or = [
+                { orderNumber: { $regex: search, $options: 'i' } },
                 { subscriptionId: { $regex: search, $options: 'i' } },
-                { user: { $regex: search, $options: 'i' } },
-                { locationName: { $regex: search, $options: 'i' } }
+                { trackingNumber: { $regex: search, $options: 'i' } },
+                { paymentIntentId: { $regex: search, $options: 'i' } },
+                { 'deliveryAddress.street': { $regex: search, $options: 'i' } },
+                { 'deliveryAddress.city': { $regex: search, $options: 'i' } },
+                { 'deliveryAddress.zipCode': { $regex: search, $options: 'i' } }
             ];
         }
         
-     
+        // Filter by order status
         if (status !== 'all') {
             searchQuery.status = status;
         }
         
-  
+        // Filter by payment status
+        if (paymentStatus !== 'all') {
+            searchQuery.paymentStatus = paymentStatus;
+        }
+        
+        // Filter by transfer status
+        if (transferStatus !== 'all') {
+            searchQuery.transferStatus = transferStatus;
+        }
+        
+        // Count total orders matching the query
         const totalOrders = await orderModel.countDocuments(searchQuery);
         
-       
+        // Fetch orders with populated fields
         const orders = await orderModel.find(searchQuery)
+            .populate('user', 'name email phone')
+            .populate('vendor', 'name businessName email phone')
+            .populate('listing', 'title category pricing images')
+            .populate('request', 'requestType status')
             .sort({ createdAt: -1 })
             .skip(skip)
-            .limit(limit);
+            .limit(limit)
+            .lean(); // Use lean() for better performance
         
-       
+        // Calculate pagination
         const totalPages = Math.ceil(totalOrders / limit);
         const hasNext = page < totalPages;
         const hasPrev = page > 1;
         
         return res.status(200).json({
+            success: true,
             orders,
             pagination: {
                 currentPage: page,
@@ -342,12 +676,15 @@ module.exports.getOrders = async (req, res) => {
         });
 
     } catch (e) {
-        console.log(e.message);
+        console.log('Error fetching orders:', e.message);
         return res.status(400).json({
-            error: "Facing issue while fetching orders"
+            success: false,
+            error: "Facing issue while fetching orders: " + e.message
         });
     }
 }
+
+
 
 module.exports.pauseSubscription = async (req, res) => {
     

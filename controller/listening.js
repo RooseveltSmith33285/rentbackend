@@ -60,7 +60,7 @@ exports.createListing = async (req, res) => {
         description,
         images: images, // Already contains Cloudinary URLs
         specifications,
-        status: listAsActive ? 'active' : 'draft',
+        status: 'draft',
         availability: {
           isAvailable: true,
           location

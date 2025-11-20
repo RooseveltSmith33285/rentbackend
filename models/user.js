@@ -41,6 +41,11 @@ deletedUser:{
 credit: {
     type: Number,  // Change from String to Number
     default: 0
+},
+status:{
+    type:String,
+    enum:['active','inactive'],
+    default:'active'
 }
 },{
     timestamps:true
