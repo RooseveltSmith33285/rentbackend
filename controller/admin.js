@@ -4,13 +4,17 @@
 let {cloudinaryUploadImage}=require('../middleware/cloudinary')
 const fs=require('fs')
 
-
-const orderModel = require('../models/order');
-const listingModel=require('../models/listing')
-const Product = require('../models/products');
 const userModel=require('../models/user');
 const adminModel = require('../models/admin');
 const vendor=require('../models/vendor')
+const orderModel = require('../models/order');
+const listingModel=require('../models/listing')
+const Product = require('../models/products');
+const SupportTicket  = require('../models/ticket');
+const {SupportMessage}=require('../models/support')
+
+
+
 
 module.exports.getUsers = async (req, res) => {
     try {
@@ -91,9 +95,7 @@ module.exports.getVendors = async (req, res) => {
        
         const skip = (page - 1) * limit;
        
-   // Remove the deletedUser filter or make it optional
-
-// OR if you want to keep it but make it work with missing fields:
+  
 let searchQuery = { 
     $or: [
         { deletedUser: { $exists: false } },
@@ -112,9 +114,9 @@ let searchQuery = {
        
         if (status !== 'all') {
             if (status === 'active') {
-                searchQuery.isActive = true;  // Use isActive from your vendor model
+                searchQuery.isActive = true;  
             } else if (status === 'suspended') {
-                searchQuery.isActive = false;  // Use isActive from your vendor model
+                searchQuery.isActive = false;  
             }
         }
         
@@ -140,13 +142,13 @@ let searchQuery = {
             {
                 $group: {
                     _id: '$vendor',
-                    totalRevenue: { $sum: '$vendorPayout' }, // Sum of vendor payouts
+                    totalRevenue: { $sum: '$vendorPayout' }, 
                     totalOrders: { $sum: 1 }
                 }
             }
         ]);
         
-        // Create a map for quick lookup
+        
         const revenueMap = {};
         revenueData.forEach(item => {
             revenueMap[item._id.toString()] = {
@@ -242,7 +244,7 @@ module.exports.deleteUser = async (req, res) => {
     const stripe = require('stripe')(process.env.STRIPE_LIVE);
     
     try {
-        // Check if user exists
+  
         const user = await userModel.findOne({ _id: id });
         
         if (!user) {
@@ -251,7 +253,7 @@ module.exports.deleteUser = async (req, res) => {
             });
         }
 
-        // Update user to mark as deleted
+        
         await userModel.findByIdAndUpdate(id, {
             $set: {
                 email: user.email + '_deletedUser_' + id,
@@ -259,20 +261,20 @@ module.exports.deleteUser = async (req, res) => {
             }
         });
 
-        // Find user's confirmed orders
+    
         let orders = await orderModel.find({
-            user: id, // Use the id parameter, not req.user._id
+            user: id, 
             status: { $in: ['confirmed'] }
         });
 
-        // If no orders, return success
+      
         if (orders.length === 0) {
             return res.status(200).json({
                 message: "User deleted successfully"
             });
         }
 
-        // Pause all subscriptions
+       
         const pausePromises = orders.map(async (order) => {
             try {
                 if (!order.subscriptionId) {
@@ -280,7 +282,7 @@ module.exports.deleteUser = async (req, res) => {
                     return { orderId: order._id, success: false, error: 'No subscription ID' };
                 }
 
-                // Cancel/pause subscription in Stripe
+          
                 try {
                     await stripe.subscriptions.update(order.subscriptionId, {
                         pause_collection: {
@@ -291,7 +293,7 @@ module.exports.deleteUser = async (req, res) => {
                     console.error(`Failed to pause Stripe subscription ${order.subscriptionId}:`, stripeError.message);
                 }
 
-                // Update order status in database
+             
                 await orderModel.findByIdAndUpdate(order._id, {
                     status: 'paused',
                     pausedAt: new Date()
@@ -304,10 +306,10 @@ module.exports.deleteUser = async (req, res) => {
             }
         });
 
-        // Wait for all pause operations to complete
+      
         const results = await Promise.all(pausePromises);
 
-        // Check results
+       
         const successCount = results.filter(r => r.success).length;
         const failCount = results.filter(r => !r.success).length;
 
@@ -339,7 +341,7 @@ module.exports.deleteVendor = async (req, res) => {
     const stripe = require('stripe')(process.env.STRIPE_LIVE);
     
     try {
-        // Check if user exists
+    
         const vendorfound = await vendor.findOne({ _id: id });
         
         if (!vendorfound) {
@@ -348,7 +350,7 @@ module.exports.deleteVendor = async (req, res) => {
             });
         }
 
-        // Update user to mark as deleted
+       
         await vendor.findByIdAndUpdate(id, {
             $set: {
                 email: vendorfound.email + '_deletedVendor_' + id,
@@ -356,20 +358,20 @@ module.exports.deleteVendor = async (req, res) => {
             }
         });
 
-        // Find user's confirmed orders
+      
         let orders = await orderModel.find({
-            user: id, // Use the id parameter, not req.user._id
+            user: id, 
             status: { $in: ['processing'] }
         });
 
-        // If no orders, return success
+     
         if (orders.length === 0) {
             return res.status(200).json({
                 message: "Vendor deleted successfully"
             });
         }
 
-        // Pause all subscriptions
+   
         const pausePromises = orders.map(async (order) => {
             try {
                 if (!order.subscriptionId) {
@@ -377,7 +379,7 @@ module.exports.deleteVendor = async (req, res) => {
                     return { orderId: order._id, success: false, error: 'No subscription ID' };
                 }
 
-                // Cancel/pause subscription in Stripe
+               
                 try {
                     await stripe.subscriptions.update(order.subscriptionId, {
                         pause_collection: {
@@ -388,7 +390,7 @@ module.exports.deleteVendor = async (req, res) => {
                     console.error(`Failed to pause Stripe subscription ${order.subscriptionId}:`, stripeError.message);
                 }
 
-                // Update order status in database
+              
                 await orderModel.findByIdAndUpdate(order._id, {
                     status: 'paused',
                     pausedAt: new Date()
@@ -406,10 +408,10 @@ module.exports.deleteVendor = async (req, res) => {
             }
         });
 
-        // Wait for all pause operations to complete
+     
         const results = await Promise.all(pausePromises);
 
-        // Check results
+       
         const successCount = results.filter(r => r.success).length;
         const failCount = results.filter(r => !r.success).length;
 
@@ -436,28 +438,28 @@ module.exports.updateProduct = async (req, res) => {
     let { id } = req.params;
  
     try {
-        // Handle image upload if present
+      
         if (req.file) {
             console.log('File received:', req.file.path);
           
             const cloudinaryResult = await cloudinaryUploadImage(req.file.path);
             
             if (cloudinaryResult.url) {
-                // Store in images array format to match your schema
+            
                 data.images = [{
                     url: cloudinaryResult.url,
                     publicId: cloudinaryResult.public_id || ''
                 }];
                 console.log('Image uploaded to Cloudinary:', cloudinaryResult.url);
                 
-                // Delete local file
+       
                 fs.unlinkSync(req.file.path);
             } else {
                 throw new Error('Failed to upload image to Cloudinary');
             }
         }
         
-        // Parse pricing if it comes as separate fields
+        
         if (data['pricing[rentPrice]'] || data['pricing[buyPrice]']) {
             data.pricing = {
                 rentPrice: parseFloat(data['pricing[rentPrice]']) || 0,
@@ -467,7 +469,7 @@ module.exports.updateProduct = async (req, res) => {
             delete data['pricing[buyPrice]'];
         }
 
-        // Parse specifications if they exist
+    
         const specifications = {};
         Object.keys(data).forEach(key => {
             if (key.startsWith('specifications[')) {
@@ -480,12 +482,12 @@ module.exports.updateProduct = async (req, res) => {
             data.specifications = specifications;
         }
         
-        // Update product and return the UPDATED document with vendor populated
+     
         const updatedProduct = await listingModel.findByIdAndUpdate(
             id,
             { $set: data },
-            { new: true, runValidators: true } // new: true returns updated document
-        ).populate('vendor', 'name businessName email'); // Populate vendor details
+            { new: true, runValidators: true } 
+        ).populate('vendor', 'name businessName email'); 
         
         if (!updatedProduct) {
             return res.status(404).json({
@@ -525,7 +527,7 @@ module.exports.getProducts = async (req, res) => {
         
         let searchQuery = {};
         
-        // Search functionality
+        
         if (search) {
             searchQuery.$or = [
                 { title: { $regex: search, $options: 'i' } },
@@ -534,22 +536,22 @@ module.exports.getProducts = async (req, res) => {
             ];
         }
       
-        // Filter by status
+     
         if (status !== 'all') {
             searchQuery.status = status;
         }
 
-        // Filter by category
+    
         if (category !== 'all') {
             searchQuery.category = category;
         }
 
-        // Filter by condition
+        
         if (condition !== 'all') {
             searchQuery.condition = condition;
         }
 
-        // Filter by price range (using rentPrice)
+       
         if (price !== 'all') {
             switch (price) {
                 case 'low':
@@ -564,10 +566,10 @@ module.exports.getProducts = async (req, res) => {
             }
         }
         
-        // Count total products
+     
         const totalProducts = await listingModel.countDocuments(searchQuery);
         
-        // Fetch products with pagination
+       
         const products = await listingModel.find(searchQuery)
             .populate('vendor', 'name businessName email')
             .sort({ createdAt: -1 })
@@ -615,7 +617,7 @@ module.exports.getOrders = async (req, res) => {
         
         let searchQuery = {};
         
-        // Search across multiple fields
+   
         if (search) {
             searchQuery.$or = [
                 { orderNumber: { $regex: search, $options: 'i' } },
@@ -628,25 +630,25 @@ module.exports.getOrders = async (req, res) => {
             ];
         }
         
-        // Filter by order status
+        
         if (status !== 'all') {
             searchQuery.status = status;
         }
         
-        // Filter by payment status
+        
         if (paymentStatus !== 'all') {
             searchQuery.paymentStatus = paymentStatus;
         }
         
-        // Filter by transfer status
+      
         if (transferStatus !== 'all') {
             searchQuery.transferStatus = transferStatus;
         }
         
-        // Count total orders matching the query
+       
         const totalOrders = await orderModel.countDocuments(searchQuery);
         
-        // Fetch orders with populated fields
+        
         const orders = await orderModel.find(searchQuery)
             .populate('user', 'name email phone')
             .populate('vendor', 'name businessName email phone')
@@ -655,9 +657,9 @@ module.exports.getOrders = async (req, res) => {
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit)
-            .lean(); // Use lean() for better performance
+            .lean(); 
         
-        // Calculate pagination
+    
         const totalPages = Math.ceil(totalOrders / limit);
         const hasNext = page < totalPages;
         const hasPrev = page > 1;
@@ -886,3 +888,446 @@ return res.status(400).json({
 })
     }
 }
+
+
+
+
+
+module.exports.getRentals = async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const search = req.query.search || '';
+        const status = req.query.status || 'all';
+        const paymentStatus = req.query.paymentStatus || 'all';
+        const transferStatus = req.query.transferStatus || 'all';
+        
+        const skip = (page - 1) * limit;
+        
+       
+        let searchQuery = {
+            status: { $in: ['confirmed', 'paused'] }
+        };
+        
+        
+        if (status !== 'all') {
+            searchQuery.status = status;
+        }
+        
+       
+        if (search) {
+            searchQuery.$or = [
+                { orderNumber: { $regex: search, $options: 'i' } },
+                { subscriptionId: { $regex: search, $options: 'i' } },
+                { trackingNumber: { $regex: search, $options: 'i' } },
+                { paymentIntentId: { $regex: search, $options: 'i' } },
+                { 'deliveryAddress.street': { $regex: search, $options: 'i' } },
+                { 'deliveryAddress.city': { $regex: search, $options: 'i' } },
+                { 'deliveryAddress.zipCode': { $regex: search, $options: 'i' } }
+            ];
+        }
+    
+        if (paymentStatus !== 'all') {
+            searchQuery.paymentStatus = paymentStatus;
+        }
+        
+        if (transferStatus !== 'all') {
+            searchQuery.transferStatus = transferStatus;
+        }
+        
+        const totalOrders = await orderModel.countDocuments(searchQuery);
+        
+        const orders = await orderModel.find(searchQuery)
+            .populate('user', 'name email phone')
+            .populate('vendor', 'name businessName email phone')
+            .populate('listing', 'title category pricing images')
+            .populate('request', 'requestType status')
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean(); 
+    
+        const totalPages = Math.ceil(totalOrders / limit);
+        const hasNext = page < totalPages;
+        const hasPrev = page > 1;
+        
+        return res.status(200).json({
+            success: true,
+            orders,
+            pagination: {
+                currentPage: page,
+                totalPages,
+                totalOrders,
+                limit,
+                hasNext,
+                hasPrev
+            }
+        });
+
+    } catch (e) {
+        console.log('Error fetching orders:', e.message);
+        return res.status(400).json({
+            success: false,
+            error: "Facing issue while fetching orders: " + e.message
+        });
+    }
+}
+
+
+module.exports.updateStatus=async(req,res)=>{
+    let {newStatus}=req.body;
+    let {id}=req.params;
+    try{
+let order=await orderModel.findByIdAndUpdate(id,{
+    $set:{
+        status:newStatus
+    }
+},{
+    new:true
+})
+
+const stripe = require('stripe')(process.env.STRIPE_LIVE);
+
+let updateData = {
+};
+
+if (newStatus === "confirmed") {
+
+  updateData.pause_collection = null;
+} else {
+ 
+  updateData.pause_collection = {
+    behavior: 'mark_uncollectible' 
+  };
+}
+
+const subscription = await stripe.subscriptions.update(
+  order.subscriptionId,
+  updateData
+);
+
+
+
+
+return res.status(200).json({
+    message:`Rental ${newStatus} sucessfully`
+})
+
+    }catch(e){
+console.log(e.message)
+return res.status(400).json({
+    error:"Error occured while trying to update the status of rental"
+})        
+
+    }
+}
+
+
+module.exports.supportSendMessage = async(req, res) => {
+    console.log('Request body:', req.body);
+    
+    const { message, ticketId, userType } = req.body;
+    const userId=req?.user?._id?req?.user?._id:req?.user?.id
+    
+    if (!message || !userId || !userType) {
+      return res.status(400).json({ 
+        error: 'Missing required fields',
+        received: { message: !!message, userId: !!userId, userType: !!userType }
+      });
+    }
+    
+    try {
+      let ticket;
+      
+      if (!ticketId) {
+        ticket = await SupportTicket.create({
+          userId: userId,
+          userType: userType,
+          status: 'open',
+          lastMessageAt: new Date()
+        });
+        console.log('Created new ticket:', ticket._id);
+      } else {
+        ticket = await SupportTicket.findById(ticketId);
+        if (!ticket) {
+          return res.status(404).json({ error: 'Ticket not found' });
+        }
+        ticket.lastMessageAt = new Date();
+        ticket.status = 'open'; 
+        await ticket.save();
+        console.log('Updated existing ticket:', ticket._id);
+      }
+      
+    
+      const messageData = {
+        ticketId: ticket._id,
+        sentBy: userType, 
+        senderId: userId,
+        senderModel: userType === 'vendor' ? 'Vendor' : 'user',
+        message: message,
+        seenByUser: true, 
+        seenByAdmin: false
+      };
+      
+     
+      console.log('Message data to be created:', JSON.stringify(messageData, null, 2));
+      
+     
+      console.log('Field check:', {
+        'ticketId exists': !!messageData.ticketId,
+        'ticketId value': messageData.ticketId,
+        'sentBy exists': !!messageData.sentBy,
+        'sentBy value': messageData.sentBy,
+        'senderId exists': !!messageData.senderId,
+        'senderId value': messageData.senderId,
+        'senderModel exists': !!messageData.senderModel,
+        'senderModel value': messageData.senderModel,
+        'message exists': !!messageData.message,
+        'message value': messageData.message
+      });
+      
+      const newMessage = await SupportMessage.create(messageData);
+      
+      console.log('Message created successfully:', newMessage._id);
+
+      if (typeof io !== 'undefined' && io) {
+        io.to('admin-room').emit('newSupportMessage', {
+          ticketId: ticket._id,
+          message: newMessage,
+          userType: userType
+        });
+      }
+      
+      res.json({ 
+        success: true, 
+        ticketId: ticket._id,
+        messageId: newMessage._id 
+      });
+      
+    } catch (error) {
+      console.log('Error in supportSendMessage:', error);
+      res.status(500).json({ error: error.message });
+    }
+  };
+
+
+module.exports.adminsupportsendmessage=async(req,res)=>{
+    const { ticketId, message,adminId="6920a166feae6e4743875b16" } = req.body;
+    
+    try {
+      const ticket = await SupportTicket.findById(ticketId);
+      
+      if (!ticket) {
+        return res.status(404).json({ error: 'Ticket not found' });
+      }
+      
+   
+      ticket.lastMessageAt = new Date();
+      ticket.status = 'pending'; 
+      if (!ticket.assignedAdmin) {
+        ticket.assignedAdmin = adminId;
+      }
+      await ticket.save();
+      
+    
+      const newMessage = await SupportMessage.create({
+        ticketId: ticketId,
+        sentBy: 'admin',
+        senderId: adminId,
+        senderModel: 'admin',
+        message: message,
+        seenByAdmin: true,
+        seenByUser: false
+      });
+     
+   
+      
+      res.json({ success: true, messageId: newMessage._id });
+      
+    } catch (error) {
+        console.log(error.message)
+      res.status(500).json({ error: error.message });
+    }
+}
+
+
+module.exports.getAllTicketsForAdmins=async(req,res)=>{
+    const { status, userType, search, page = 1, limit = 20 } = req.query;
+  
+  try {
+    const query = {};
+    
+    if (status && status !== 'all') {
+        query.status = status;
+      } else {
+       
+        query.status = { $ne: 'closed' };
+      }
+
+
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+    
+    if (userType && userType !== 'all') {
+      query.userType = userType;
+    }
+    
+    const tickets = await SupportTicket.find(query)
+      .populate('userId', 'name email avatar')
+      .sort({ lastMessageAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+ 
+    const ticketsWithUnread = await Promise.all(
+      tickets.map(async (ticket) => {
+        const unreadCount = await SupportMessage.countDocuments({
+          ticketId: ticket._id,
+          sentBy: { $ne: 'admin' },
+          seenByAdmin: false
+        });
+        
+        const lastMessage = await SupportMessage.findOne({
+          ticketId: ticket._id
+        }).sort({ createdAt: -1 });
+        
+        return {
+          ...ticket.toObject(),
+          unreadCount,
+          lastMessage
+        };
+      })
+    );
+    
+    res.json({ tickets: ticketsWithUnread });
+    
+  } catch (error) {
+    console.log(error.message)
+    res.status(500).json({ error: error.message });
+  }
+}
+
+
+
+
+
+
+
+
+module.exports.supportmessageTickets=async(req,res)=>{
+    const { ticketId } = req.params;
+  
+  try {
+    const messages = await SupportMessage.find({ ticketId })
+      .sort({ createdAt: 1 })
+      .populate('senderId', 'name email avatar');
+    
+    res.json({ messages });
+    
+  } catch (error) {
+    console.log(error.message)
+    res.status(500).json({ error: error.message });
+  }
+}
+
+module.exports.markMessageAsRead = async (req, res) => {
+    const { ticketId } = req.params;
+    const {userRole} = req.body; 
+    
+    try {
+    
+      let query = { ticketId };
+      let updateField;
+      
+      if (userRole === 'admin') {
+      
+        query.sentBy = { $ne: 'admin' };
+        query.seenByAdmin = false; 
+        updateField = { seenByAdmin: true };
+      } else {
+       
+        query.sentBy = 'admin';
+        query.seenByUser = false; 
+        updateField = { seenByUser: true };
+      }
+      
+      await SupportMessage.updateMany(
+        query,
+        { 
+          $set: { 
+            ...updateField,
+            seenAt: new Date() 
+          } 
+        }
+      );
+      
+      res.json({ success: true });
+      
+    } catch (error) {
+        console.log(error.message)
+      res.status(500).json({ error: error.message });
+    }
+  };
+
+
+
+  module.exports.getUserTicket = async(req, res) => {
+    const {  userType } = req.query;
+    console.log(userType)
+    try {
+        let userId=req?.user?._id?req?.user?._id:req.user.id
+        console.log(userId)
+      const tickets = await SupportTicket.find({ 
+        userId: userId,
+        userType: userType,
+        status: { $ne: 'closed' } 
+      })
+      .populate('userId', 'name email')
+      .sort({ lastMessageAt: -1 })
+      .limit(1); 
+      
+      if (!tickets || tickets.length === 0) {
+        return res.json({ ticket: null, messages: [] });
+      }
+      
+      const ticket = tickets[0];
+      
+      const messages = await SupportMessage.find({ ticketId: ticket._id })
+        .sort({ createdAt: 1 })
+        .populate('senderId', 'name email');
+      
+      res.json({ ticket, messages });
+    } catch (error) {
+        console.log(error.message)
+      res.status(500).json({ error: error.message });
+    }
+  };
+
+
+
+
+  
+
+  module.exports.getCurrentAdmin = async(req, res) => {
+  
+    let { email } = req.query;
+    
+    try {
+      let currentAdmin = await adminModel.findOne({ email });
+      
+      if (!currentAdmin) {
+        return res.status(404).json({
+          error: "Admin not found"
+        });
+      }
+      
+      return res.status(200).json({
+        currentAdmin
+      });
+    } catch(e) {
+      console.log(e.message);
+      return res.status(400).json({
+        error: "Error occurred while trying to get Admin"
+      });
+    }
+  }

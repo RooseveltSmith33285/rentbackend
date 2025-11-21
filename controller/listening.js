@@ -18,7 +18,7 @@ exports.createListing = async (req, res) => {
         rentPrice,
         buyPrice,
         description,
-        images, // This will now contain Cloudinary URLs
+        images, 
         publishToFeed,
         listAsActive,
         specifications,
@@ -58,7 +58,7 @@ exports.createListing = async (req, res) => {
           buyPrice
         },
         description,
-        images: images, // Already contains Cloudinary URLs
+        images: images,
         specifications,
         status: 'draft',
         availability: {
@@ -136,7 +136,7 @@ exports.getVendorListings = async (req, res) => {
     try {
       const id = req.user._id ? req.user._id : req.user.id;
       
-      // Find listing and verify ownership
+     
       const listing = await Listing.findOne({
         _id: req.params.id
       });
@@ -147,7 +147,7 @@ exports.getVendorListings = async (req, res) => {
         });
       }
   
-      // Prepare update data
+    
       const updateData = {
         title: req.body.title,
         category: req.body.category,
@@ -157,7 +157,7 @@ exports.getVendorListings = async (req, res) => {
         publishToFeed: req.body.publishToFeed === 'true' || req.body.publishToFeed === true
       };
   
-      // Handle pricing
+    
       if (req.body['pricing[rentPrice]'] || req.body['pricing[buyPrice]']) {
         updateData.pricing = {
           rentPrice: parseFloat(req.body['pricing[rentPrice]']) || listing.pricing.rentPrice,
@@ -165,7 +165,7 @@ exports.getVendorListings = async (req, res) => {
         };
       }
   
-      // Handle location
+    
       if (req.body['availability[location][city]'] || req.body['availability[location][state]'] || req.body['availability[location][zipCode]']) {
         updateData.availability = {
           ...listing.availability,
@@ -177,7 +177,7 @@ exports.getVendorListings = async (req, res) => {
         };
       }
   
-      // Handle specifications (Map type)
+    
       const specifications = new Map();
       Object.keys(req.body).forEach(key => {
         if (key.startsWith('specifications[')) {
@@ -192,10 +192,10 @@ exports.getVendorListings = async (req, res) => {
         updateData.specifications = specifications;
       }
   
-      // Handle images
+   
       let updatedImages = [];
   
-      // Parse existing images from request
+    
       const existingImagesData = [];
       Object.keys(req.body).forEach(key => {
         if (key.startsWith('existingImages[')) {
@@ -212,48 +212,46 @@ exports.getVendorListings = async (req, res) => {
         }
       });
   
-      // Keep existing images that weren't removed
+     
       updatedImages = existingImagesData.filter(img => img && img.url).map(img => ({
         url: img.url,
         publicId: img.publicId || '',
         isPrimary: img.isPrimary === 'true' || img.isPrimary === true
       }));
   
-      // Upload new images to Cloudinary
-     // Upload new images to Cloudinary
+   
 if (req.files && req.files.length > 0) {
-    // Check if there's already a primary image in existing images
+   
     const hasPrimaryImage = updatedImages.some(img => img.isPrimary === true);
     
     for (const file of req.files) {
       try {
-        // Upload to Cloudinary
+      
         const result = await cloudinaryUploadImage(file.path);
         
-        // Add to images array
+        
         updatedImages.push({
           url: result.url,
           publicId: result.public_id,
-          isPrimary: !hasPrimaryImage && updatedImages.length === 0 // Only first new image is primary if no existing primary
+          isPrimary: !hasPrimaryImage && updatedImages.length === 0
         });
   
-        // Delete local file after upload
+        
         if (fs.existsSync(file.path)) {
           fs.unlinkSync(file.path);
         }
       } catch (uploadError) {
         console.error('Image upload error:', uploadError);
-        // Continue with other images even if one fails
+       
       }
     }
   }
   
-      // Always update images array (even if empty)
-      // This allows users to remove all images if needed
+     
       updateData.images = updatedImages;
   
       console.log(updateData.images)
-      // Update the listing
+     
       const updatedListing = await Listing.findByIdAndUpdate(
         req.params.id,
         updateData,
@@ -269,7 +267,7 @@ if (req.files && req.files.length > 0) {
     } catch (error) {
       console.error('Update listing error:', error);
       
-      // Clean up uploaded files if there was an error
+
       if (req.files && req.files.length > 0) {
         req.files.forEach(file => {
           if (fs.existsSync(file.path)) {
@@ -303,7 +301,7 @@ if (req.files && req.files.length > 0) {
   
       await listing.deleteOne();
   
-      // Update vendor stats
+
       const vendor = await Vendor.findById(id);
       
       if (vendor) {
@@ -493,30 +491,29 @@ return res.status(200).json({
     try {
       const vendorId = req.user._id || req.user.id;
       
-      // Extract query parameters
+ 
       const {
         page = 1,
         limit = 12,
         search = '',
         category = 'all',
-        sortBy = 'visibility', // visibility, views, engagement, recent
-        status = '' // optional: filter by status
+        sortBy = 'visibility', 
+        status = ''
       } = req.query;
   
-      // Build query
+  
       let query = { vendor: vendorId };
   
-      // Category filter
       if (category && category !== 'all') {
         query.category = category;
       }
   
-      // Status filter (optional)
+    
       if (status) {
         query.status = status;
       }
   
-      // Search filter
+      
       if (search) {
         query.$or = [
           { title: { $regex: search, $options: 'i' } },
@@ -525,7 +522,7 @@ return res.status(200).json({
         ];
       }
   
-      // Build sort options
+      
       let sortOptions = {};
       switch (sortBy) {
         case 'visibility':
@@ -535,9 +532,8 @@ return res.status(200).json({
           sortOptions = { 'engagement.views': -1 };
           break;
         case 'engagement':
-          // Sort by total engagement (likes + inquiries + shares)
-          // Note: MongoDB doesn't support computed sorts directly, so we'll do this in-memory
-          sortOptions = { createdAt: -1 }; // Fallback, will sort in-memory later
+         
+          sortOptions = { createdAt: -1 }; 
           break;
         case 'recent':
           sortOptions = { createdAt: -1 };
@@ -546,10 +542,10 @@ return res.status(200).json({
           sortOptions = { 'visibility.visibilityScore': -1, createdAt: -1 };
       }
   
-      // Calculate skip value for pagination
+     
       const skip = (parseInt(page) - 1) * parseInt(limit);
   
-      // Fetch listings
+     
       let listings = await Listing.find(query)
         .sort(sortOptions)
         .skip(skip)
@@ -557,7 +553,7 @@ return res.status(200).json({
         .select('title category brand condition pricing description images status visibility engagement availability createdAt updatedAt publishToFeed')
         .lean();
   
-      // If sorting by engagement, do it in-memory
+     
       if (sortBy === 'engagement') {
         listings.sort((a, b) => {
           const engagementA = 
@@ -572,12 +568,12 @@ return res.status(200).json({
         });
       }
   
-      // Get total count for pagination
+      
       const totalListings = await Listing.countDocuments(query);
       const totalPages = Math.ceil(totalListings / parseInt(limit));
       const hasMore = parseInt(page) < totalPages;
   
-      // Get summary stats for the vendor
+    
       const allListings = await Listing.find({ vendor: vendorId });
       
       const stats = {

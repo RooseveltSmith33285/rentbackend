@@ -2,7 +2,7 @@ const cron = require('node-cron');
 const Listing = require('../models/listing'); 
 const nodemailer = require('nodemailer');
 
-// Configure email transporter
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -11,7 +11,6 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// 📧 Send boost expiry warning email
 const sendBoostExpiryWarning = async (listing, vendor, hoursRemaining) => {
   try {
     const expiryDate = new Date(listing.visibility.boostEndDate);
@@ -119,7 +118,7 @@ const sendBoostExpiryWarning = async (listing, vendor, hoursRemaining) => {
   }
 };
 
-// 📧 Send boost expired notification
+
 const sendBoostExpiredNotification = async (listing, vendor) => {
   try {
     const mailOptions = {
@@ -194,24 +193,23 @@ const sendBoostExpiredNotification = async (listing, vendor) => {
   }
 };
 
-// ⚠️ Check for boosts expiring in 72+ hours and send warnings
+
 const checkUpcomingExpiries = async () => {
   try {
     const now = new Date();
     const in72Hours = new Date(now.getTime() + (72 * 60 * 60 * 1000));
-    const in78Hours = new Date(now.getTime() + (78 * 60 * 60 * 1000)); // 6 hour buffer
+    const in78Hours = new Date(now.getTime() + (78 * 60 * 60 * 1000)); 
     
     console.log('⚠️ Checking for boosts expiring at or after 72 hours...');
     
-    // Find listings with boosts expiring between 72-78 hours from now
-    // This gives us a 6-hour window to catch the listings since cron runs every 6 hours
+   
     const upcomingExpiries = await Listing.find({
       'visibility.isBoosted': true,
       'visibility.boostEndDate': { 
-        $gte: in72Hours,  // At or after 72 hours from now
-        $lte: in78Hours   // But within 78 hours (6 hour window)
+        $gte: in72Hours,  
+        $lte: in78Hours   
       },
-      'visibility.expiryWarningsSent': { $ne: true } // Only send once
+      'visibility.expiryWarningsSent': { $ne: true }
     })
     .populate('vendor', 'email name businessName')
     .select('_id title brand category visibility engagement vendor');
@@ -232,11 +230,11 @@ const checkUpcomingExpiries = async () => {
       
       console.log(`  ⏰ "${listing.title}" expires in ${hoursRemaining} hours`);
       
-      // Send warning email
+      
       const sent = await sendBoostExpiryWarning(listing, listing.vendor, hoursRemaining);
       
       if (sent) {
-        // Mark that warning was sent
+        
         await Listing.updateOne(
           { _id: listing._id },
           { $set: { 'visibility.expiryWarningsSent': true } }
@@ -255,7 +253,7 @@ const checkUpcomingExpiries = async () => {
   }
 };
 
-// 🗑️ Remove expired boosts
+
 const removeExpiredBoosts = async () => {
   try {
     const now = new Date();
@@ -280,7 +278,7 @@ const removeExpiredBoosts = async () => {
     
     console.log(`📋 Found ${expiredListings.length} listings with expired boosts`);
     
-    // Log and send emails
+   
     for (const listing of expiredListings) {
       const expired = Math.floor((now - new Date(listing.visibility.boostEndDate)) / (1000 * 60 * 60 * 24));
       console.log(`  ❌ "${listing.title}" (${listing.brand})`);
@@ -288,11 +286,11 @@ const removeExpiredBoosts = async () => {
       console.log(`     Boost: $${listing.visibility.boostAmount}`);
       console.log(`     Expired: ${expired} day(s) ago`);
       
-      // Send expiry notification
+    
       await sendBoostExpiredNotification(listing, listing.vendor);
     }
     
-    // Update all expired listings in bulk
+   
     const result = await Listing.updateMany(
       {
         'visibility.isBoosted': true,
@@ -303,7 +301,7 @@ const removeExpiredBoosts = async () => {
           'visibility.isBoosted': false,
           'visibility.boostAmount': 0,
           'visibility.boostEndDate': null,
-          'visibility.expiryWarningsSent': false // Reset for next boost
+          'visibility.expiryWarningsSent': false 
         }
       }
     );
@@ -332,9 +330,9 @@ const removeExpiredBoosts = async () => {
   }
 };
 
-// 📅 Schedule both cron jobs
+
 module.exports.scheduleBoostExpiryCheck = () => {
-  // Check for expiries every minute (you can change this to daily at midnight: '0 0 * * *')
+ 
   cron.schedule('0 0 * * *', async () => {
     console.log('⏰ Running boost expiry check...');
     await removeExpiredBoosts();
@@ -343,7 +341,7 @@ module.exports.scheduleBoostExpiryCheck = () => {
     timezone: "America/New_York" 
   });
   
-  // Check for listings that will expire in 72 hours - runs every 6 hours
+ 
   cron.schedule('0 */6 * * *', async () => {
     console.log('⏰ Running 72-hour advance warning check...');
     await checkUpcomingExpiries();

@@ -14,6 +14,6 @@ const strikeSchema = mongoose.Schema({
     }
 }, { timestamps: true })
 
-const strikeModel = mongoose.model('strike', strikeSchema)  // ✅ Changed Schema to model
+const strikeModel = mongoose.model('strike', strikeSchema)  
 
 module.exports = strikeModel

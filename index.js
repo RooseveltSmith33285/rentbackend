@@ -1,5 +1,13 @@
 const express = require('express');
 const app = express();
+
+
+const fs=require('fs')
+
+
+const SupportTicket  = require('./models/ticket');
+const {SupportMessage}=require('./models/support')
+
 const http = require('http');
 const socketIo = require('socket.io');
 const jwt = require('jsonwebtoken');
@@ -29,7 +37,8 @@ const userlistenings=require('./routes/userlistening')
 const requestRoutes=require('./routes/request')
 const messagesRoutes=require('./routes/messages')
 const {handleStripeConnectWebhook}=require('./controller/payment')
-const orderCron=require('./utils/order')
+const orderCron=require('./utils/order');
+const adminModel = require('./models/admin');
 require('dotenv').config();
 app.use(cors())
 
@@ -40,10 +49,10 @@ app.post(
 );
 
 app.use(express.json())
-// Socket.io middleware for authentication
+
 
 scheduleBoostExpiryCheck();
-// Store online users
+
 const onlineUsers = new Map();
 
 const getActiveRentersCount = () => {
@@ -56,11 +65,11 @@ const getActiveRentersCount = () => {
   return count;
 };
 
-// Socket.io connection handler
+
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
-  // User joins their room
+
   socket.on('join', ({ userId, userType }) => {
     console.log(`${userType} ${userId} joined`);
     socket.join(userId);
@@ -72,21 +81,20 @@ io.on('connection', (socket) => {
       userType: userType
     });
     
-    // Notify others that user is online
+    
     socket.broadcast.emit('userOnline', {
       userId: userId,
       userType: userType,
       isOnline: true
     });
 
-    // If a renter joined, send updated count to all vendors
+   
     if (userType === 'user') {
       const count = getActiveRentersCount();
       io.emit('activeRentersCount', count);
     }
   });
 
-  // Handle new message - ONLY for real-time delivery
 
   socket.on('getActiveRenters', () => {
     const count = getActiveRentersCount();
@@ -94,22 +102,22 @@ io.on('connection', (socket) => {
     console.log('Sent active renters count:', count);
     console.log('Current online users:', Array.from(onlineUsers.entries()));
   });
-  // Handle new message - ONLY for real-time delivery
+ 
 socket.on('sendMessage', async (data) => {
   try {
     const { conversationId, senderId, receiverId, message, sendBy, timestamp, tempId, image, isNewConversation, vendor, user } = data;
     
     console.log('New message received via socket:', data);
     
-    // Check if receiver is online
+   
     const receiverOnline = onlineUsers.has(receiverId);
     
-    // If receiver is online, update the message read status in database
+    
     if (receiverOnline && tempId) {
       const Message = require('./models/messages');
       
       try {
-        // Update the message that was just saved via API
+        
         if (sendBy === 'user') {
           await Message.findByIdAndUpdate(tempId, { seenByVendor: true });
         } else if (sendBy === 'vendor') {
@@ -121,8 +129,7 @@ socket.on('sendMessage', async (data) => {
       }
     }
     
-    // Just emit to receiver for real-time delivery
-    // Message is already saved via API call
+  
     io.to(receiverId).emit('newMessage', {
       id: tempId,
       senderId: senderId,
@@ -133,12 +140,12 @@ socket.on('sendMessage', async (data) => {
       timestamp: timestamp,
       read: receiverOnline,
       conversationId: conversationId,
-      isNewConversation: isNewConversation, // ADD THIS
-      vendor: vendor, // ADD THIS
-      user: user // ADD THIS
+      isNewConversation: isNewConversation, 
+      vendor: vendor,
+      user: user 
     });
 
-    // Confirm to sender with read status
+  
     socket.emit('messageSent', {
       tempId: tempId,
       read: receiverOnline,
@@ -155,55 +162,124 @@ socket.on('sendMessage', async (data) => {
   }
 });
 
-  // socket.on('sendMessage', async (data) => {
-  //   try {
-  //     const { conversationId, senderId, receiverId, message, sendBy, timestamp, tempId } = data;
-      
-  //     console.log('New message received via socket:', data);
-      
-  //     // Check if receiver is online
-  //     const receiverOnline = onlineUsers.has(receiverId);
-      
-  //     // Just emit to receiver for real-time delivery
-  //     // Message is already saved via API call
-  //     io.to(receiverId).emit('newMessage', {
-  //       id: tempId, // Use the tempId from API response
-  //       senderId: senderId,
-  //       receiverId: receiverId,
-  //       message: message,
-  //       sendBy: sendBy,
-  //       timestamp: timestamp,
-  //       read: receiverOnline,
-  //       conversationId: conversationId
-  //     });
 
-  //     // Confirm to sender with read status
-  //     socket.emit('messageSent', {
-  //       tempId: tempId,
-  //       read: receiverOnline,
-  //       success: true
-  //     });
 
-  //     console.log('Message emitted to receiver');
-  //   } catch (error) {
-  //     console.error('Error emitting message:', error);
-  //     socket.emit('error', { 
-  //       message: 'Failed to emit message',
-  //       error: error.message 
-  //     });
-  //   }
-  // });
+// ADD THIS IN YOUR SOCKET LISTENERS
+socket.on('ticketClosed', (data) => {
+  try {
+    const { ticketId, userId, userType, closedAt } = data;
+    
+    console.log('Ticket closed by user:', data);
+    
+    // Broadcast to admin room
+    io.to('admin-room').emit('ticketClosed', {
+      ticketId: ticketId,
+      userId: userId,
+      userType: userType,
+      closedAt: closedAt
+    });
+    
+    console.log('Ticket closed notification sent to admin room');
+  } catch (error) {
+    console.error('Error handling ticket closed event:', error);
+  }
+});
 
-  // Handle messages seen
+// Add these new socket listeners in your io.on('connection') block
+// ADD THIS NEW LISTENER
+socket.on('newTicketCreated', async (data) => {
+  try {
+    const { ticketId, message, sendBy, userId, timestamp, messageId, userType } = data;
+    
+    console.log('New ticket created via socket:', data);
+    
+    // Fetch the complete ticket with populated user data
+    const SupportTicket = require('./models/ticket'); // Adjust path as needed
+    
+    const populatedTicket = await SupportTicket.findById(ticketId)
+      .populate('userId', 'name email avatar');
+    
+    // Emit to admin room with complete ticket data
+    io.to('admin-room').emit('newTicket', {
+      ticket: populatedTicket,
+      message: {
+        _id: messageId,
+        message: message,
+        sentBy: sendBy,
+        createdAt: timestamp,
+        seenByAdmin: false
+      },
+      userType: userType
+    });
+    
+    console.log('✅ Emitted newTicket event to admin-room');
+  } catch (error) {
+    console.error('Error handling newTicketCreated:', error);
+  }
+});
+socket.on('sendSupportMessage', async (data) => {
+  try {
+    const { ticketId, message, sendBy, userId, timestamp, messageId, userType } = data;
+    
+    console.log('Support message sent via socket:', data);
+    
+    // Emit to admin room
+    io.to('admin-room').emit('newSupportMessage', {
+      ticketId: ticketId,
+      message: {
+        _id: messageId,
+        message: message,
+        sentBy: sendBy,
+        createdAt: timestamp,
+        seenByAdmin: false
+      },
+      userType: userType
+    });
+    
+    console.log('Support message emitted to admin room');
+  } catch (error) {
+    console.error('Error emitting support message:', error);
+  }
+});
+
+
+socket.on('supportMessagesRead', async (data) => {
+  try {
+    const { ticketId, userId, userType } = data;
+    
+    console.log('Support messages read by user:', data);
+    
+    // Emit to admin room to update read status
+    io.to('admin-room').emit('supportMessageRead', {
+      ticketId: ticketId,
+      userId: userId,
+      userType: userType,
+      timestamp: new Date()
+    });
+    
+    console.log('Support message read confirmation sent to admin');
+  } catch (error) {
+    console.error('Error emitting support read confirmation:', error);
+  }
+});
+
+
+
+
+socket.on('joinAdminRoom', () => {
+  socket.join('admin-room');
+  console.log('Admin joined admin-room:', socket.id);
+});
+
   socket.on('messagesSeen', async (data) => {
     try {
       const { conversationId, userId, vendorId, seenBy } = data;
       
       console.log('Messages seen:', data);
       
-      const Message = require('./models/messages'); // Adjust path
+      const Message = require('./models/messages'); 
       
-      // Update messages in database
+     
       if (seenBy === 'user') {
         await Message.updateMany(
           { 
@@ -215,7 +291,7 @@ socket.on('sendMessage', async (data) => {
           { seenByUser: true }
         );
         
-        // Notify vendor
+     
         io.to(vendorId).emit('messagesRead', {
           conversationId: userId,
           seenBy: 'user',
@@ -234,7 +310,7 @@ socket.on('sendMessage', async (data) => {
           { seenByVendor: true }
         );
         
-        // Notify user
+        
         io.to(userId).emit('messagesRead', {
           conversationId: vendorId,
           seenBy: 'vendor',
@@ -252,13 +328,13 @@ socket.on('sendMessage', async (data) => {
     }
   });
 
-  // Handle typing indicator
+
   socket.on('typing', (data) => {
     const { conversationId, receiverId, isTyping, typerType } = data;
     
     console.log('Typing event:', data);
     
-    // Emit to receiver only
+    
     io.to(receiverId).emit('userTyping', {
       conversationId: conversationId,
       isTyping: isTyping,
@@ -266,14 +342,14 @@ socket.on('sendMessage', async (data) => {
     });
   });
 
-  // Handle disconnect
+
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
     
     if (socket.userId) {
       onlineUsers.delete(socket.userId);
       
-      // Notify others that user is offline
+
       socket.broadcast.emit('userOffline', {
         userId: socket.userId,
         userType: socket.userType,
@@ -282,13 +358,13 @@ socket.on('sendMessage', async (data) => {
     }
   });
 
-  // Error handling
+
   socket.on('error', (error) => {
     console.error('Socket error:', error);
   });
 });
 
-// Make io accessible to routes if needed
+
 app.set('io', io);
 
 connection
@@ -305,6 +381,89 @@ app.use(communityRoutes)
 app.use(userlistenings)
 app.use(requestRoutes)
 app.use(messagesRoutes)
+
+
+
+app.post('/adminsupportsendmessage',async(req, res) => {
+  let { ticketId, message, adminId} = req.body;
+  
+  try {
+    const ticket = await SupportTicket.findById(ticketId);
+    let adminFound=await adminModel.findOne({email:adminId})
+    adminId=adminFound._id
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+    
+    ticket.lastMessageAt = new Date();
+    ticket.status = 'pending'; 
+    if (!ticket.assignedAdmin) {
+      ticket.assignedAdmin = adminId;
+    }
+    await ticket.save();
+    
+    const newMessage = await SupportMessage.create({
+      ticketId: ticketId,
+      sentBy: 'admin',
+      senderId: adminId,
+      senderModel: 'admin',
+      message: message,
+      seenByAdmin: true,
+      seenByUser: false
+    });
+    
+    // Emit socket event to user
+    if (typeof io !== 'undefined' && io) {
+      io.to(ticket.userId.toString()).emit('newSupportMessage', {
+        id: newMessage._id,
+        messageId: newMessage._id,
+        ticketId: ticketId,
+        message: message,
+        sendBy: 'admin',
+        timestamp: newMessage.createdAt
+      });
+    }
+    
+    res.json({ success: true, messageId: newMessage._id });
+    
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ error: error.message });
+  }
+})
+
+
+app.patch('/closeTicket/:ticketId',async(req, res) => {
+  const { ticketId } = req.params;
+  
+  try {
+    const ticket = await SupportTicket.findOne({
+      _id: ticketId
+    });
+    
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+    
+    ticket.status = 'closed';
+    await ticket.save();
+    
+    // EMIT SOCKET EVENT TO ADMIN ROOM
+    if (typeof io !== 'undefined' && io) {
+      io.to('admin-room').emit('ticketClosed', {
+        ticketId: ticketId,
+        userId: ticket.userId,
+        closedAt: new Date()
+      });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ error: error.message });
+  }
+})
+
 
 app.get('/cancelsub',async(req,res)=>{
   try{

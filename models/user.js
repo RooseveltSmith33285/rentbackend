@@ -39,7 +39,7 @@ deletedUser:{
     default:false
 },
 credit: {
-    type: Number,  // Change from String to Number
+    type: Number,  
     default: 0
 },
 status:{

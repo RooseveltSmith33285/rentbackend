@@ -22,7 +22,7 @@ const orderSchema = mongoose.Schema({
         required: true
     },
     
-    // Delivery Information
+   
     deliveryType: {
         type: String,
         required: true
@@ -46,7 +46,7 @@ const orderSchema = mongoose.Schema({
         required: true
     },
     
-    // Pricing
+   
     monthlyRent: {
         type: Number,
         required: true
@@ -64,7 +64,7 @@ const orderSchema = mongoose.Schema({
         required: true
     },
     
-    // 💰 Payment Split Fields
+    
     platformFee: {
         type: Number,
         required: true,
@@ -76,7 +76,7 @@ const orderSchema = mongoose.Schema({
         default: 0
     },
     
-    // Payment Information
+   
     paymentIntentId: {
         type: String,
         required: true
@@ -90,7 +90,7 @@ const orderSchema = mongoose.Schema({
         type: String
     },
     
-    // 🔑 Transfer Management Fields
+   
     transferStatus: {
         type: String,
         enum: ['pending', 'completed', 'cancelled', 'failed'],
@@ -107,7 +107,7 @@ const orderSchema = mongoose.Schema({
         type: Date
     },
     
-    // 💳 Refund Management Fields
+    
     refundId: {
         type: String
     },
@@ -121,7 +121,7 @@ const orderSchema = mongoose.Schema({
         type: String
     },
     
-    // 🆕 REJECTION HANDLING FIELDS (NEW)
+  
     rejectionReason: {
         type: String
     },
@@ -147,7 +147,7 @@ const orderSchema = mongoose.Schema({
         default: 'none'
     },
     
-    // Order Status
+  
     status: {
         type: String,
         enum: [
@@ -169,7 +169,7 @@ const orderSchema = mongoose.Schema({
         type: String
     },
     
-    // Rental Information
+  
     rentalStartDate: {
         type: Date
     },
@@ -180,18 +180,18 @@ const orderSchema = mongoose.Schema({
         type: String
     },
     
-    // 📸 Product Images
+  
     productImages: {
         type: Object,
         default: {}
     },
     
-    // Additional Notes
+    
     notes: {
         type: String
     },
     
-    // Tracking
+    
     trackingNumber: {
         type: String
     },
@@ -203,7 +203,7 @@ const orderSchema = mongoose.Schema({
     
 }, { timestamps: true });
 
-// Generate order number before saving
+
 orderSchema.pre('save', async function(next) {
     if (!this.orderNumber) {
         this.orderNumber = 'ORD-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
@@ -211,7 +211,7 @@ orderSchema.pre('save', async function(next) {
     next();
 });
 
-// 🔍 Helper method to check if payment can be released
+
 orderSchema.methods.canReleasePayment = function() {
     return this.transferStatus === 'pending' && 
            this.paymentStatus === 'paid' &&
@@ -219,33 +219,33 @@ orderSchema.methods.canReleasePayment = function() {
            this.status !== 'refunded';
 };
 
-// 🔍 Helper method to check if order can be refunded
+
 orderSchema.methods.canRefund = function() {
     return this.transferStatus === 'pending' && 
            this.paymentStatus === 'paid' &&
            !this.refundId;
 };
 
-// 🆕 Helper method to check if order can be rejected
+
 orderSchema.methods.canReject = function() {
     return (this.status === 'processing' || this.status === 'pending_confirmation') &&
            this.transferStatus === 'pending' &&
            !this.rejectedAt;
 };
 
-// 📊 Virtual for vendor payout percentage
+
 orderSchema.virtual('vendorPayoutPercentage').get(function() {
     if (!this.totalAmount || this.totalAmount === 0) return 0;
     return ((this.vendorPayout / this.totalAmount) * 100).toFixed(1);
 });
 
-// 📊 Virtual for platform fee percentage
+
 orderSchema.virtual('platformFeePercentage').get(function() {
     if (!this.totalAmount || this.totalAmount === 0) return 0;
     return ((this.platformFee / this.totalAmount) * 100).toFixed(1);
 });
 
-// Enable virtuals in JSON
+
 orderSchema.set('toJSON', { virtuals: true });
 orderSchema.set('toObject', { virtuals: true });
 

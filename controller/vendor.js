@@ -22,29 +22,29 @@ const generateToken = (id) => {
       const { name, email, mobile, password, businessName } = req.body;
       const stripe = require('stripe')(process.env.STRIPE_LIVE);
   
-      // Validation
+    
       if (!name || !email || !mobile || !password) {
         return res.status(400).json({ error: 'Please provide all required fields' });
       }
   
-      // Email validation
+      
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         return res.status(400).json({ error: 'Please provide a valid email address' });
       }
   
-      // Password validation
+     
       if (password.length < 6) {
         return res.status(400).json({ error: 'Password must be at least 6 characters' });
       }
   
-      // Check if vendor already exists
+     
       const existingVendor = await Vendor.findOne({ email: email.toLowerCase() });
       if (existingVendor) {
         return res.status(400).json({ error: 'Email already registered' });
       }
   
-      // Step 1: Create Stripe Connect Express Account
+    
       let stripeAccountId = null;
       let onboardingUrl = null;
       
@@ -66,7 +66,7 @@ const generateToken = (id) => {
         });
         stripeAccountId = account.id;
         
-        // Create onboarding link
+    
         const accountLink = await stripe.accountLinks.create({
           account: stripeAccountId,
           refresh_url: `https://rentsimpledeals.com/listening`,
@@ -78,11 +78,10 @@ const generateToken = (id) => {
         
       } catch (stripeError) {
         console.error('Stripe account creation error:', stripeError);
-        // Continue with signup but log the error
-        // We'll let them connect Stripe later if this fails
+      
       }
   
-      // Step 2: Create vendor in database
+     
       const vendor = await Vendor.create({
         name,
         email: email.toLowerCase(),
@@ -93,7 +92,7 @@ const generateToken = (id) => {
        
       });
   
-      // Return response with onboarding URL
+      
       res.status(201).json({
         success: true,
         message: 'Account created successfully',
@@ -106,7 +105,7 @@ const generateToken = (id) => {
           stripeAccountId: stripeAccountId,
           stripeConnected: !!stripeAccountId
         },
-        // Include onboarding URL so frontend can redirect
+ 
         stripeOnboarding: {
           required: true,
           url: onboardingUrl,
@@ -117,8 +116,7 @@ const generateToken = (id) => {
     } catch (error) {
       console.error('Signup error:', error);
       
-      // If vendor was created but there was an error, still return success
-      // but indicate Stripe needs to be set up later
+   
       if (error.code === 11000) {
         return res.status(400).json({ error: 'Email already registered' });
       }
@@ -133,29 +131,29 @@ const generateToken = (id) => {
     try {
       const { email, password } = req.body;
   
-      // Validation
+   
       if (!email || !password) {
         return res.status(400).json({ error: 'Please provide email and password' });
       }
   
-      // Check if vendor exists and include password field
+     
       const vendor = await Vendor.findOne({ email: email.toLowerCase() }).select('+password');
       if (!vendor) {
         return res.status(401).json({ error: 'Invalid email or password' });
       }
   
-      // Check if vendor is active
+     
       if (!vendor.isActive) {
         return res.status(403).json({ error: 'Account is deactivated. Contact support.' });
       }
   
-      // Verify password
+      
       const isPasswordValid = await Vendor.findOne({password})
       if (!isPasswordValid) {
         return res.status(401).json({ error: 'Invalid email or password' });
       }
   
-      // Generate token
+     
       const token = generateToken(vendor._id);
   
       res.status(200).json({
@@ -206,35 +204,34 @@ return res.status(200).json({
     try {
       const { email, password } = req.body;
   
-      // Validation
+    
       if (!email || !password) {
         return res.status(400).json({ error: 'Please provide email and new password' });
       }
   
-      // Email validation
+     
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         return res.status(400).json({ error: 'Please provide a valid email address' });
       }
   
-      // Password validation
+     
       if (password.length < 6) {
         return res.status(400).json({ error: 'Password must be at least 6 characters' });
       }
   
-      // Find vendor
+   
       const vendor = await Vendor.findOne({ email: email.toLowerCase() });
       if (!vendor) {
         return res.status(404).json({ error: 'No account found with this email address' });
       }
   
-      // Check if vendor is active
       if (!vendor.isActive) {
         return res.status(403).json({ error: 'Account is deactivated. Contact support.' });
       }
   
      vendor.password=password
-      // Clear any existing reset tokens
+      
       vendor.resetPasswordToken = undefined;
       vendor.resetPasswordExpire = undefined;
   
@@ -438,7 +435,7 @@ module.exports.approveRequest=async(req,res)=>{
     
     const imageUrls = {};
     
-    // Process each field
+   
     if (files.front && files.front[0]) {
       const result = await cloudinaryUploadImage(files.front[0].path);
       imageUrls.front = result.url;
@@ -642,9 +639,9 @@ module.exports.generateStripeOnboardingLink = async (req, res) => {
       });
     }
     
-    // ✅ CHECK IF FULLY ONBOARDED
+    
     if (vendor.stripe_connect_status === true) {
-      // Double-check with Stripe to ensure they're really ready
+     
       const account = await stripe.accounts.retrieve(vendor.stripe_account_id);
       
       const isReady = account.charges_enabled && 
@@ -659,12 +656,12 @@ module.exports.generateStripeOnboardingLink = async (req, res) => {
           message: 'Your Stripe account is already connected and ready to receive payments'
         });
       }
-      // If not actually ready, continue to generate link
+      
     }
     
     let stripeAccountId = vendor.stripe_account_id;
     
-    // Create account if doesn't exist
+    
     if (!stripeAccountId) {
       const account = await stripe.accounts.create({
         type: 'express',
@@ -689,7 +686,7 @@ module.exports.generateStripeOnboardingLink = async (req, res) => {
         }
       });
     } else {
-      // ✅ FETCH CURRENT ACCOUNT STATUS TO SHOW WHAT'S MISSING
+      
       const account = await stripe.accounts.retrieve(stripeAccountId);
       
       console.log('Current account requirements:', {
@@ -699,7 +696,7 @@ module.exports.generateStripeOnboardingLink = async (req, res) => {
       });
     }
     
-    // Generate onboarding link
+  
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
       refresh_url: `${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/vendordashboard?stripe_refresh=true`,
@@ -726,84 +723,6 @@ module.exports.generateStripeOnboardingLink = async (req, res) => {
 
 
 
-// module.exports.generateStripeOnboardingLink = async (req, res) => {
-//   try {
-//     const stripe = require('stripe')(process.env.STRIPE_LIVE);
-//     const vendorId = req?.user?._id ? req?.user?._id : req.user.id;
-    
-//     // Get vendor from database
-//     const vendor = await Vendor.findById(vendorId);
-    
-//     if (!vendor) {
-//       return res.status(404).json({
-//         error: 'Vendor not found'
-//       });
-//     }
-    
-//     // ✅ CHECK IF STRIPE CONNECT IS ALREADY COMPLETE
-//     if (vendor.stripe_connect_status === true) {
-//       return res.status(200).json({
-//         success: true,
-//         alreadyConnected: true,
-//         accountId: vendor.stripe_account_id,
-//         message: 'Your Stripe account is already connected and ready to receive payments'
-//       });
-//     }
-    
-//     let stripeAccountId = vendor.stripe_account_id;
-    
-//     // If no Stripe account exists, create one
-//     if (!stripeAccountId) {
-//       const account = await stripe.accounts.create({
-//         type: 'express',
-//         country: 'US', // Change based on your requirements
-//         email: vendor.email,
-//         business_type: 'individual', // or 'company'
-//         capabilities: {
-//           transfers: { requested: true },
-//         },
-//         metadata: {
-//           vendorId: vendor._id.toString(),
-//           businessName: vendor.businessName || vendor.name
-//         }
-//       });
-      
-//       stripeAccountId = account.id;
-      
-//       // Save Stripe account ID to vendor
-//       await Vendor.findByIdAndUpdate(vendorId, {
-//         $set: {
-//           stripe_account_id: stripeAccountId,
-//           stripe_connect_status: false
-//         }
-//       });
-//     }
-    
-//     // Generate account link for incomplete onboarding
-//     const accountLink = await stripe.accountLinks.create({
-//       account: stripeAccountId,
-//       refresh_url: `${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/vendordashboard`,
-//       return_url: `${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/vendordashboard`,
-//       type: 'account_onboarding',
-//     });
-    
-//     return res.status(200).json({
-//       success: true,
-//       onboardingUrl: accountLink.url,
-//       accountId: stripeAccountId,
-//       expiresAt: accountLink.expires_at,
-//       message: 'Complete your Stripe onboarding to start receiving payments'
-//     });
-    
-//   } catch (error) {
-//     console.error('Error generating onboarding link:', error);
-//     return res.status(400).json({
-//       error: 'Failed to generate onboarding link',
-//       message: error.message
-//     });
-//   }
-// };
-
 
 
 
@@ -813,12 +732,12 @@ module.exports.renewListing = async (req, res) => {
   try {
     console.log(listingId);
     
-    // Update the existing listing to make it available again
+   
     const updatedListing = await listing.findByIdAndUpdate(
       listingId,
       {
         $set: {
-          // Combine all updates into ONE $set operator
+          
           status: 'active',
           'availability.isAvailable': true,
           publishToFeed: true,
@@ -828,7 +747,7 @@ module.exports.renewListing = async (req, res) => {
           'engagement.shares': 0
         }
       },
-      { new: true } // Return the updated document
+      { new: true } 
     );
 
     console.log(updatedListing);
@@ -839,7 +758,7 @@ module.exports.renewListing = async (req, res) => {
       });
     }
 
-    // Recalculate visibility score
+   
     updatedListing.calculateVisibilityScore();
     await updatedListing.save();
 await requestModel.deleteMany({listing:listingId,status:'rejected'})
@@ -878,16 +797,16 @@ module.exports.checkStripeAccountStatus = async (req, res) => {
       });
     }
     
-    // Fetch full account details from Stripe
+   
     const account = await stripe.accounts.retrieve(vendor.stripe_account_id);
     
-    // Check onboarding status
+
     const isFullyOnboarded = account.charges_enabled && 
                              account.payouts_enabled &&
                              account.details_submitted &&
                              account.capabilities?.transfers === 'active';
     
-    // Update database with current status
+  
     await Vendor.findByIdAndUpdate(vendorId, {
       $set: {
         stripe_connect_status: isFullyOnboarded,
@@ -905,7 +824,7 @@ module.exports.checkStripeAccountStatus = async (req, res) => {
       }
     });
     
-    // Return detailed status
+    
     return res.status(200).json({
       success: true,
       accountId: account.id,

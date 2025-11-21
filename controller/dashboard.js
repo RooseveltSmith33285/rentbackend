@@ -86,14 +86,14 @@ setInterval(() => {
       let id = req?.user?._id ? req?.user?._id : req.user.id;
       
       let user=await userModel.findById(id)
-      // Get pending approvals (orders waiting for user confirmation)
+     
       let pendingApprovals = await ordersModel
         .find({ status: 'processing', user: id })
         .populate('listing')
         .populate('vendor')
         .sort({ createdAt: -1 });
 
-      // Get all orders for this user
+     
       let orders = await ordersModel
         .find({ user: id })
         .populate('user')
@@ -101,7 +101,7 @@ setInterval(() => {
         .populate('vendor')
         .sort({ createdAt: -1 });
 
-      // Get completed orders (confirmed deliveries)
+     
       let completedOrders = await ordersModel
         .find({ user: id, status: 'confirmed' })
         .populate('user')
@@ -109,26 +109,24 @@ setInterval(() => {
         .populate('vendor')
         .sort({ createdAt: -1 });
 
-      // Define what statuses count as "active rentals"
+     
       const activeRentalStatuses = ['active', 'delivered', 'in_transit', 'processing', 'confirmed'];
-      
-      // Filter active rentals (ongoing rentals)
+     
       const activeRentals = orders.filter(order => 
         activeRentalStatuses.includes(order.status)
       );
 
-      // Calculate stats
+      
       const stats = {
-        activeRentals: activeRentals.length, // Count from the filtered activeRentals array
+        activeRentals: activeRentals.length, 
         
         totalSpent: orders
           .filter(order => order.paymentStatus === 'paid')
           .reduce((sum, order) => sum + (order.totalAmount || 0), 0),
         
-        completedRentals: completedOrders.length // Use completedOrders length
+        completedRentals: completedOrders.length 
       };
 
-      // Get recent receipts
       const recentReceipts = orders
         .filter(order => order.paymentStatus === 'paid')
         .slice(0, 5) 
@@ -141,14 +139,13 @@ setInterval(() => {
           receiptNumber: order.orderNumber
         }));
 
-      // Get renter info
       const renter = await userModel.findById(id).select('name email credit');
 
       return res.status(200).json({
         success: true,
         data: {
           stats,
-          activeRentals: activeRentals.slice(0, 5), // Return top 5 active rentals
+          activeRentals: activeRentals.slice(0, 5), 
           pendingApprovals,
           recentReceipts,
           renter,

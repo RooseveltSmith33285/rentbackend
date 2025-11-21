@@ -122,7 +122,7 @@ exports.createBoost = async (req, res) => {
   } catch (error) {
     console.error('Create boost error:', error);
     
-    // Handle specific Stripe errors
+
     if (error.type === 'StripeCardError') {
       return res.status(400).json({
         error: error.message || 'Your card was declined. Please try another payment method.'

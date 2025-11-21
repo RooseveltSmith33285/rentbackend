@@ -40,21 +40,6 @@ return res.status(400).json({
     }
 }
 
-// exports.getConversations=async(req,res)=>{
-//     try{
-//         let id=req?.user?._id?req?.user?._id:req.user.id
-
-//         let conversations=await messageModel.find({user:id}).populate('vendor')
-//         return res.status(200).json({
-//             conversations
-//         })
-//     }catch(e){
-//         console.log(e.message)
-//         return res.status(400).json({
-//             error:"Error occured while trying to fetch conversations"
-//         })
-//     }
-// }
 
 
 exports.getConversations = async (req, res) => {
@@ -64,7 +49,7 @@ exports.getConversations = async (req, res) => {
         console.log('=== Getting Conversations ===');
         console.log('User ID:', userId);
 
-        // Get all existing conversations for the user
+       
         let conversations = await messageModel
             .find({ user: userId })
             .populate('vendor')
@@ -75,7 +60,7 @@ exports.getConversations = async (req, res) => {
             conversations.map(c => c.vendor?._id?.toString())
         );
 
-        // Get all vendors the user has rented from (orders with specific statuses)
+    
         const userOrders = await orderModel
             .find({
                 user: userId,
@@ -100,7 +85,7 @@ exports.getConversations = async (req, res) => {
             status: o.status
         })));
 
-        // Extract unique vendor IDs from orders
+       
         const orderVendorIds = [...new Set(
             userOrders
                 .map(order => order.vendor?.toString())
@@ -109,26 +94,26 @@ exports.getConversations = async (req, res) => {
 
         console.log('Unique vendor IDs from orders:', orderVendorIds);
 
-        // Get existing conversation vendor IDs
+      
         const existingConversationVendorIds = conversations
             .map(conv => conv.vendor?._id?.toString())
             .filter(Boolean);
 
-        // Find vendors that user has orders with but no conversations
+       
         const vendorsWithoutConversations = orderVendorIds.filter(
             vendorId => !existingConversationVendorIds.includes(vendorId)
         );
 
         console.log('Vendors needing conversations:', vendorsWithoutConversations);
 
-        // Create conversations for vendors without existing conversations
+       
         if (vendorsWithoutConversations.length > 0) {
             const newConversations = await Promise.all(
                 vendorsWithoutConversations.map(async (vendorId) => {
                     try {
                         console.log(`Creating conversation for vendor: ${vendorId}`);
                         
-                        // Create new conversation
+                       
                         const newConversation = await messageModel.create({
                             user: userId,
                             vendor: vendorId,
@@ -140,7 +125,7 @@ exports.getConversations = async (req, res) => {
                         });
                         console.log(`✓ Conversation created with ID: ${newConversation._id}`);
                         
-                        // Populate vendor details
+                     
                         const populatedConv = await messageModel
                             .findById(newConversation._id)
                             .populate('vendor')
@@ -154,7 +139,7 @@ exports.getConversations = async (req, res) => {
                 })
             );
 
-            // Filter out null values and add to conversations
+        
             const validNewConversations = newConversations.filter(Boolean);
             console.log('New conversations created:', validNewConversations.length);
             

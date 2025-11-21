@@ -33,37 +33,6 @@ module.exports.storeBilling = async (req, res) => {
 
 
 
-// module.exports.storeBilling = async (req, res) => {
-//     const { ...data } = req.body;
-//     const stripe = require('stripe')(process.env.STRIPE_LIVE);   
-    
- 
-//     try {
-       
-//         let paymentMethodToken = jwt.sign({paymentMethodId:data.paymentMethodId,draftDay:data.draftDay}, process.env.PAYMENT_METHOD_JWT_KEY, {
-            
-//         });
-
-      
-//         await userModel.findByIdAndUpdate(req.user._id, {
-//             $set: {
-//                 paymentMethodToken: paymentMethodToken
-//             }
-//         });
-
-//         return res.status(200).json({
-//             message: "Billing details saved successfully"
-//         });
-//     } catch (e) {
-//         console.log(e.message);
-//         return res.status(500).json({
-//             error: "Facing issue while storing billing info please try again",
-//             details: e.message
-//         });
-//     }
-// };
-
-
 module.exports.updatePaymentMethod=async(req,res)=>{
     const stripe = require('stripe')(process.env.STRIPE_LIVE);
     let user=await userModel.findOne({_id:req.user._id})
@@ -286,8 +255,8 @@ module.exports.resumeBilling = async (req, res) => {
 
 module.exports.handleStripeConnectWebhook = async (req, res) => {
   const stripe = require('stripe')(process.env.STRIPE_LIVE);
-  const endpointSecret = "whsec_1QTQ8XtkP0rFEVQbyWj282ebsc1WArsZ";
-  // const endpointSecret = "whsec_b82d718fbae44ab38035f9ce59915a1c5c7870d001c5d90f38cab27b8e52a15c";
+  // const endpointSecret = "whsec_1QTQ8XtkP0rFEVQbyWj282ebsc1WArsZ";
+  const endpointSecret = "whsec_b82d718fbae44ab38035f9ce59915a1c5c7870d001c5d90f38cab27b8e52a15c";
   const sig = req.headers['stripe-signature'];
 
   let event;
@@ -304,7 +273,7 @@ module.exports.handleStripeConnectWebhook = async (req, res) => {
   try {
     switch (event.type) {
       case 'account.updated':
-        // Pass stripe instance to handler
+  
         await handleAccountUpdated(event.data.object, stripe);
         break;
       
@@ -336,12 +305,12 @@ module.exports.handleStripeConnectWebhook = async (req, res) => {
   }
 };
 
-// ⚠️ KEY FIX: Fetch full account data from Stripe API
+
 async function handleAccountUpdated(accountFromWebhook, stripe) {
   console.log('📝 Processing account.updated for:', accountFromWebhook.id);
   
   try {
-    // Find vendor by Stripe account ID
+
     const vendor = await Vendor.findOne({ stripe_account_id: accountFromWebhook.id });
     
     if (!vendor) {
@@ -349,12 +318,11 @@ async function handleAccountUpdated(accountFromWebhook, stripe) {
       return;
     }
     
-    // 🔥 CRITICAL: Fetch FULL account data from Stripe API
-    // Webhook events often have partial/stale data
+  
     console.log('🔄 Fetching fresh account data from Stripe API...');
     const account = await stripe.accounts.retrieve(accountFromWebhook.id);
     
-    // Check if account is fully onboarded
+  
     const isFullyOnboarded =
     account.details_submitted === true &&
     account.payouts_enabled === true &&
@@ -372,7 +340,7 @@ async function handleAccountUpdated(accountFromWebhook, stripe) {
     console.log('Eventually due:', account.requirements?.eventually_due);
     console.log('=============================================');
     
-    // Update vendor in database
+
     const updatedVendor = await Vendor.findByIdAndUpdate(
       vendor._id,
       {
@@ -400,8 +368,7 @@ async function handleAccountUpdated(accountFromWebhook, stripe) {
       console.log('Vendor:', updatedVendor._id);
       console.log('Status in DB:', updatedVendor.stripe_connect_status);
       
-      // Optional: Send email notification
-      // await sendOnboardingCompleteEmail(vendor.email, vendor.name);
+      
     } else {
       console.log('⏳ VENDOR ONBOARDING INCOMPLETE');
       console.log('Vendor:', vendor._id);
@@ -456,7 +423,7 @@ async function handleCapabilityUpdated(capability, stripe) {
       if (capability.id === 'transfers' && capability.status === 'active') {
         console.log('✅ TRANSFERS CAPABILITY ACTIVE for vendor:', vendor._id);
         
-        // 🔥 Also fetch and update full account when transfers become active
+        
         console.log('🔄 Fetching full account data after transfers activated...');
         const account = await stripe.accounts.retrieve(capability.account);
         
@@ -506,7 +473,7 @@ async function handleAccountAuthorized(application, stripe) {
       });
       console.log('✅ Application authorized for vendor:', vendor._id);
       
-      // 🔥 Fetch full account status after authorization
+
       console.log('🔄 Fetching full account data after authorization...');
       const account = await stripe.accounts.retrieve(application.account);
       
@@ -572,7 +539,7 @@ async function handleAccountDeauthorized(application) {
       if (vendor) {
         console.log('✅ Bank account added for vendor:', vendor._id);
         
-        // Optional: Update vendor with bank account info
+
         await Vendor.findByIdAndUpdate(vendor._id, {
           $set: {
             'stripeAccountData.hasBankAccount': true,

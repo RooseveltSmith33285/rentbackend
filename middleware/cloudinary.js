@@ -10,14 +10,14 @@ cloudinary.config({
 
 module.exports.cloudinaryUploadImage = async (fileToUpload) => {
   try {
-    // Check if file exists
+ 
     if (!fs.existsSync(fileToUpload)) {
       throw new Error('File not found');
     }
 
     const data = await cloudinary.uploader.upload(fileToUpload, {
       resource_type: 'auto',
-      folder: 'products', // Optional: organize uploads in folders
+      folder: 'products', 
       use_filename: true,
       unique_filename: true,
     });

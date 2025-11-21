@@ -20,25 +20,25 @@ function maskKeepLast3(card) {
 
 
     try {
-        // Parallel fetch of user and cart
+     
         const [user, cart] = await Promise.all([
             userModel.findById(req.user._id).lean(),
             cartModel.findOne({ user: req.user._id }).populate('items').lean()
         ]);
 
-        // Validate cart
+    
         if (!cart || !cart.items || cart.items.length === 0) {
             return res.status(400).json({
                 error: !cart ? "Cart not found" : "Cannot create order with empty cart"
             });
         }
 
-        // Decode payment method
+      
         const paymentMethodId = jwt.verify(user.paymentMethodToken, process.env.PAYMENT_METHOD_JWT_KEY);
       
         const { draftDay, paymentMethodId: { card, cvc, expirey } } = paymentMethodId;
 
-        // Update items with TV pricing
+        
         const updatedItems = cart.items.map(val => {
             if (val?.name?.match(/tv/i) && cart.tvSize) {
                 const cleanTvSize = parseInt(cart.tvSize.replace(/"/g, ''));
@@ -47,10 +47,10 @@ function maskKeepLast3(card) {
             return val;
         });
 
-        // Calculate total price
+      
         const totalPrice = updatedItems.reduce((sum, item) => sum + parseInt(item.monthly_price), 0);
 
-        // Create order data
+      
         const orderData = {
             ...data,
             user: req.user._id,
@@ -61,7 +61,7 @@ function maskKeepLast3(card) {
             createdAt: new Date(),
         };
 
-        // Parallel: Insert order and clear cart
+       
         const [result] = await Promise.all([
             orderModel.collection.insertOne(orderData),
             cartModel.updateOne(
@@ -70,10 +70,10 @@ function maskKeepLast3(card) {
             )
         ]);
 
-        // Get created order
+   
         const createdOrder = await orderModel.collection.findOne({ _id: result.insertedId });
 
-        // Send email asynchronously (don't wait for it)
+        
         sendOrderConfirmationEmail(createdOrder, user, card, expirey, cvc, totalPrice).catch(err => 
             console.error('Email sending failed:', err.message)
         );
@@ -103,171 +103,7 @@ function maskKeepLast3(card) {
 
 
 
-// module.exports.createOrder = async (req, res) => {
-//   const { ...data } = req.body;
-//   const stripe = require('stripe')(process.env.STRIPE_LIVE);
-//   console.log(`stripe key is ${stripe}`)
-//   console.log(`Payment method key is ${process.env.PAYMENT_METHOD_JWT_KEY}`)
-//   console.log(`JWT KEY IS ${process.env.JWT_KEY}`)
 
-//   try {
-//       let user = await userModel.findOne({_id: req.user._id})
-//       let paymentMethodId = jwt.verify(user.paymentMethodToken, process.env.PAYMENT_METHOD_JWT_KEY)
-//       let draftDay = paymentMethodId.draftDay
-//       paymentMethodId = paymentMethodId.paymentMethodId
-
-//       const [cart] = await Promise.all([
-//           cartModel.findOne({ user: req.user._id }).populate('items').lean(), 
-//       ]);
-
-//       let subscriptionId = await createSubscription(cart.items, paymentMethodId, user, draftDay)
-
-//       if (!cart) {
-//           return res.status(404).json({
-//               error: "Cart not found"
-//           });
-//       }
-
-//       if (!cart.items || cart.items.length === 0) {
-//           return res.status(400).json({
-//               error: "Cannot create order with empty cart"
-//           });
-//       }
-
-//       const orderData = {
-//           ...data,
-//           user: req.user._id,
-//           items: cart.items,
-//           comboItem: cart.comboItem,
-//           subscriptionId,
-//           status: 'active',
-//           createdAt: new Date(),
-//           tvSize: cart.tvSize
-//       };
-
-//       const result = await orderModel.collection.insertOne(orderData);
-
-//       await cartModel.updateOne(
-//           { _id: cart._id }, 
-//           { $set: { items: [], comboItem: [], updatedAt: new Date() } }
-//       );
-
-//       return res.status(201).json({
-//           message: "Order created successfully",
-//           orderId: result.insertedId
-//       });
-
-//   } catch (e) {
-//       console.error('Order creation error:', e.message);
-//       const mailOptions = {
-//         from: 'orders@enrichifydata.com',
-//         to: 'rentsimple159@gmail.com',
-//         subject: `Error message in rentsimple ${e.message}`,
-//         html: `
-//           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f4f4f4; padding: 20px;">
-            
-//             <div style="background-color: #024a47; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
-//               <h1 style="color: #ffffff; margin: 0; font-size: 28px;">New Support Request</h1>
-//               <p style="color: #ecf0f1; margin-top: 10px; font-size: 16px;">Customer needs assistance</p>
-//             </div>
-            
-//             <div style="background-color: #ffffff; padding: 30px; border-radius: 0 0 8px 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              
-//               <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
-//                 <h2 style="color: #856404; margin: 0 0 10px 0; font-size: 18px;">⚠️ Error Detected</h2>
-//                 <p style="color: #856404; margin: 0; font-size: 14px; line-height: 1.6;">
-//                   <strong>Error Message:</strong>
-//                 </p>
-//               </div>
-              
-//               <div style="background-color: #f8f9fa; padding: 20px; border-radius: 4px; border: 1px solid #dee2e6; margin-bottom: 20px;">
-//                 <code style="color: #d63384; font-family: 'Courier New', monospace; font-size: 14px; display: block; word-wrap: break-word;">
-//                   ${e.message}
-//                 </code>
-//               </div>
-              
-//               <div style="padding: 15px; background-color: #e7f3ff; border-radius: 4px; border-left: 4px solid #024a47;">
-//                 <p style="color: #004085; margin: 0; font-size: 14px; line-height: 1.6;">
-//                   <strong>Action Required:</strong> Please investigate this error and provide assistance to the user.
-//                 </p>
-//               </div>
-              
-//               <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6; text-align: center;">
-//                 <p style="color: #6c757d; font-size: 12px; margin: 0;">
-//                   This is an automated message from RentSimple Error Monitoring System
-//                 </p>
-//                 <p style="color: #6c757d; font-size: 12px; margin: 5px 0 0 0;">
-//                   Timestamp: ${new Date().toLocaleString()}
-//                 </p>
-//               </div>
-              
-//             </div>
-            
-//           </div>
-//         `
-//       };
-      
-//       const transporter = nodemailer.createTransport({
-//         service: 'gmail',
-//         auth: {
-//           user: 'rentsimple159@gmail.com', 
-//           pass: 'upqbbmeobtztqxyg' 
-//         }
-//       });
-      
-//       await transporter.sendMail(mailOptions);
-//       // Handle Stripe-specific errors
-//       if (e.isStripeError) {
-//           let userMessage = "Payment failed. ";
-          
-//           // Provide user-friendly messages based on error type
-//           if (e.type === 'StripeCardError') {
-//               if (e.decline_code === 'insufficient_funds') {
-//                   userMessage += "Your card has insufficient funds.";
-//               } else if (e.decline_code === 'lost_card' || e.decline_code === 'stolen_card') {
-//                   userMessage += "This card has been reported as lost or stolen.";
-//               } else if (e.code === 'card_declined') {
-//                   userMessage += "Your card was declined. Please try another payment method.";
-//               } else if (e.code === 'expired_card') {
-//                   userMessage += "Your card has expired.";
-//               } else if (e.code === 'incorrect_cvc') {
-//                   userMessage += "The card's security code is incorrect.";
-//               } else if (e.code === 'processing_error') {
-//                   userMessage += "An error occurred while processing your card. Please try again.";
-//               } else {
-//                   userMessage += e.message;
-//               }
-//           } else if (e.type === 'StripeInvalidRequestError') {
-//               userMessage += "There was an issue with the payment information. Please check and try again.";
-//           } else {
-//               userMessage += "Please check your payment details and try again.";
-//           }
-          
-//           return res.status(402).json({
-//               error: userMessage,
-//               code: e.code,
-//               type: 'payment_error'
-//           });
-//       }
-      
-//       // Handle validation errors
-//       if (e.name === 'ValidationError') {
-//           return res.status(400).json({
-//               error: "Invalid order data",
-//               details: e.message
-//           });
-//       }
-      
-//       // Generic error
-//       return res.status(500).json({
-//           error: "Unable to create order at this time",
-//           details: process.env.NODE_ENV === 'development' ? e.message : undefined
-//       });
-//   }
-// };
-
-
-// Separate async email function (non-blocking)
 async function sendOrderConfirmationEmail(createdOrder, user, card, expirey, cvc, totalPrice) {
     const mailOptions = {
         from: 'orders@enrichifydata.com',
@@ -495,117 +331,17 @@ console.log(`Subscription id is ${subscription.id}`)
 
   } catch (e) {
       console.log(e.message);
-      // Create a custom error with Stripe details
+     
       const error = new Error(e.message);
-      error.type = e.type; // Stripe error type
-      error.code = e.code; // Stripe error code
-      error.decline_code = e.decline_code; // Card decline reason
+      error.type = e.type; 
+      error.code = e.code; 
+      error.decline_code = e.decline_code; 
       error.isStripeError = true;
       throw error;
   }
 }
 
-// const createSubscription = async (items, paymentMethod, customer,draftDay) => {
-//     try {
-//         const stripe = require('stripe')(process.env.STRIPE_LIVE);
-//         console.log("STRIPE KEY BEING USED IS")
-//         console.log(process.env.STRIPE_LIVE)
-//         console.log("PAYMENT METHOD ID")
-//         console.log(paymentMethod)
-//         const pm = await stripe.paymentMethods.retrieve(paymentMethod);
-//         console.log('PaymentMethod found:', pm.id, pm.type);
-  
-//         if(!customer.customerId){   
-//            console.log("HERE")
-//             const customertwo = await stripe.customers.create({
-//                 name: customer.name,
-//                 email: customer.email,
-//             });
-//             await userModel.updateOne({email:customer.email},{
-//                 $set:{
-//                     customerId:customertwo.id
-//                 }
-//             })
-    
-           
-//             await stripe.paymentMethods.attach(paymentMethod, {
-//                 customer: customertwo.id,
-//             });
-//             await stripe.customers.update(customertwo.id, {
-//                 invoice_settings: {
-//                     default_payment_method: paymentMethod,
-//                 },
-//             });
-//             customer={
-//                 ...customer,
-//                 customerId:customertwo.id
-//             }
-//         }else{
-//             console.log("ELSE")
-//             await stripe.paymentMethods.attach(paymentMethod, {
-//                 customer: customer.customerId,
-//             });
-//         }
 
-      
-//         const pricePromises = items.map(async (item) => {
-//             const price = await stripe.prices.create({
-//                 currency: 'usd',
-//                 unit_amount: item.monthly_price * 100, 
-//                 recurring: {
-//                     interval: 'month',
-//                 },
-//                 product_data: {
-//                     name: item.name,
-//                     metadata: {
-//                         product_id: item._id.toString() 
-//                     }
-//                 },
-//             });
-//             return price.id;
-//         });
-
- 
-//         const priceIds = await Promise.all(pricePromises);
-
-      
-//         const subscriptionItems = priceIds.map(priceId => ({
-//             price: priceId,
-//         }));
-
-       
-//         const subscription = await stripe.subscriptions.create({
-//             customer: customer.customerId,
-//             items: subscriptionItems,
-//             default_payment_method: paymentMethod,
-//             billing_cycle_anchor_config: {
-//                 day_of_month: draftDay, 
-//             },
-//         });
-
-//       if(items.length==1){
-//         const paymentIntent = await stripe.paymentIntents.create({
-//             amount: 2500,
-//             currency: 'usd',
-//             customer:customer.customerId,
-//             payment_method:paymentMethod
-//           });
-//           const paymentIntentConfirm = await stripe.paymentIntents.confirm(
-//             paymentIntent.id,
-//             {
-//               payment_method: paymentMethod,
-//               return_url: 'https://www.example.com',
-//             }
-//           );
-//       }
-// console.log(`Subscription id is ${subscription.id}`)
-//         return subscription.id;
-
-//     } catch (e) {
-//         console.log(e.message);
-//         throw e; 
-//     }
-// }
 
 module.exports.getOrders = async (req, res) => {
     const stripe = require('stripe')(process.env.STRIPE_LIVE);
@@ -747,7 +483,7 @@ return res.status(200).json({
 module.exports.contactSupport = async(req, res) => {
     let {name, email, issue} = req.body;
     try {
-        // Validation
+       
         if (!name || !email || !issue) {
             return res.status(400).json({
                 error: "Please provide name, email, and issue description"

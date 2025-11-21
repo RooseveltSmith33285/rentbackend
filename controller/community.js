@@ -61,23 +61,23 @@ exports.getFeed = async (req, res) => {
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
 
-    // Build query based on filter
+  
     let query = { isActive: true };
     
-    // If filter is a specific post type, add it to query
+   
     const validTypes = ['announcement', 'tip', 'update', 'promotion'];
     if (filter !== 'all' && validTypes.includes(filter)) {
       query.type = filter;
     }
 
-    // Count total documents matching the query
+   
     const totalItems = await CommunityPost.countDocuments(query);
     
-    // Calculate pagination
+    
     const totalPages = Math.ceil(totalItems / limitNum);
     const skip = (pageNum - 1) * limitNum;
 
-    // Fetch posts with filter and pagination applied at database level
+   
     const posts = await CommunityPost.find(query)
       .populate('vendor', 'name businessName')
       .populate('linkedListing', 'title pricing images')
@@ -87,13 +87,13 @@ exports.getFeed = async (req, res) => {
       .limit(limitNum)
       .lean();
 
-    // Add itemType to each post
+   
     const feedItems = posts.map(p => ({
       ...p,
       itemType: 'post'
     }));
 
-    // Calculate hasMore
+   
     const hasMore = pageNum < totalPages;
 
     res.status(200).json({
@@ -158,7 +158,7 @@ exports.getFeed = async (req, res) => {
         });
       }
   
-      // Check if user already liked the post
+     
       const alreadyLiked = post.likes.some(like => like.user.toString() === userId.toString());
   
       if (alreadyLiked) {
@@ -167,7 +167,7 @@ exports.getFeed = async (req, res) => {
         });
       }
   
-      // Add like
+
       post.likes.push({ user: userId });
       await post.save();
   
@@ -186,7 +186,7 @@ exports.getFeed = async (req, res) => {
     }
   };
   
-  // Unlike a post
+  
   exports.unlikePost = async (req, res) => {
     try {
       const { postId } = req.params;
@@ -200,7 +200,7 @@ exports.getFeed = async (req, res) => {
         });
       }
   
-      // Remove like
+     
       post.likes = post.likes.filter(like => like.user.toString() !== userId.toString());
       await post.save();
   
@@ -219,7 +219,7 @@ exports.getFeed = async (req, res) => {
     }
   };
   
-  // Create a comment
+
   exports.createComment = async (req, res) => {
     try {
       const { postId } = req.params;
@@ -246,7 +246,7 @@ exports.getFeed = async (req, res) => {
         });
       }
   
-      // Add comment
+  
       const comment = {
         user: userId,
         text: text.trim()
@@ -255,10 +255,10 @@ exports.getFeed = async (req, res) => {
       post.comments.push(comment);
       await post.save();
   
-      // Populate user info for the new comment
+      
       await post.populate('comments.user', 'businessName profileImage');
   
-      // Get the newly added comment
+     
       const newComment = post.comments[post.comments.length - 1];
   
       res.status(201).json({
@@ -277,7 +277,7 @@ exports.getFeed = async (req, res) => {
     }
   };
   
-  // Get comments for a post
+
   exports.getComments = async (req, res) => {
     try {
       const { postId } = req.params;
@@ -293,10 +293,10 @@ exports.getFeed = async (req, res) => {
         });
       }
   
-      // Sort comments by newest first
+    
       const sortedComments = post.comments.sort((a, b) => b.createdAt - a.createdAt);
   
-      // Pagination
+     
       const startIndex = (page - 1) * limit;
       const endIndex = page * limit;
       const paginatedComments = sortedComments.slice(startIndex, endIndex);
@@ -318,7 +318,7 @@ exports.getFeed = async (req, res) => {
     }
   };
   
-  // Delete a comment
+
   exports.deleteComment = async (req, res) => {
     try {
       const { postId, commentId } = req.params;
@@ -332,7 +332,6 @@ exports.getFeed = async (req, res) => {
         });
       }
   
-      // Find the comment
       const comment = post.comments.id(commentId);
   
       if (!comment) {
@@ -341,7 +340,7 @@ exports.getFeed = async (req, res) => {
         });
       }
   
-      // Check if user owns the comment or owns the post
+      
       const isCommentOwner = comment.user.toString() === userId.toString();
       const isPostOwner = post.vendor.toString() === userId.toString();
   
@@ -351,7 +350,6 @@ exports.getFeed = async (req, res) => {
         });
       }
   
-      // Remove comment
       post.comments.pull(commentId);
       await post.save();
   

@@ -13,11 +13,11 @@ const {
 } = require('../controller/community');
 
 
-// Like routes
+
 router.post('/community/posts/:postId/like', Auth, likePost);
 router.delete('/community/posts/:postId/like', Auth, unlikePost);
 
-// Comment routes
+
 router.post('/community/posts/:postId/comments', Auth, createComment);
 router.get('/community/posts/:postId/comments', getComments);
 router.delete('/community/posts/:postId/comments/:commentId', Auth, deleteComment);

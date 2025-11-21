@@ -7,11 +7,11 @@ module.exports.getUserListenings=async(req,res)=>{
         let listenings=await Listing.find({status:{$eq:'active'}}).populate('vendor')
         let user=await userModel.findById(id)
 
-        // Sort listings with boost priority
+  
         const sortedListenings = listenings.sort((a, b) => {
             const now = new Date();
             
-            // Check if boost is active and hasn't reached est_reach
+           
             const aBoostActive = a.visibility?.isBoosted && 
                                 a.visibility?.boostEndDate && 
                                 new Date(a.visibility.boostEndDate) > now &&
@@ -22,11 +22,11 @@ module.exports.getUserListenings=async(req,res)=>{
                                 new Date(b.visibility.boostEndDate) > now &&
                                 (b.engagement?.views || 0) < (b.visibility?.est_react || Infinity);
             
-            // Get boost amounts (default to 0 if not boosted or expired or reached limit)
+        
             const aBoostAmount = aBoostActive ? (a.visibility?.boostAmount || 0) : 0;
             const bBoostAmount = bBoostActive ? (b.visibility?.boostAmount || 0) : 0;
             
-            // Calculate boost priority score based on remaining reach
+           
             const aReachRemaining = aBoostActive 
                 ? 1 - ((a.engagement?.views || 0) / (a.visibility?.est_react || 1))
                 : 0;
@@ -37,12 +37,12 @@ module.exports.getUserListenings=async(req,res)=>{
             const aPriority = aBoostAmount * aReachRemaining;
             const bPriority = bBoostAmount * bReachRemaining;
             
-            // Sort by priority (highest first)
+        
             if (bPriority !== aPriority) {
                 return bPriority - aPriority;
             }
             
-            // If priorities are equal, sort by creation date (newest first)
+           
             return new Date(b.createdAt) - new Date(a.createdAt);
         });
 
@@ -70,13 +70,13 @@ module.exports.trackListingView = async (req, res) => {
             return res.status(404).json({ error: 'Listing not found' });
         }
 
-        // Increment view count
+
         listing.engagement.views = (listing.engagement.views || 0) + 1;
         
-        // Check if boost reached its estimated reach
+      
         if (listing.visibility?.isBoosted && listing.visibility?.est_react) {
             if (listing.engagement.views >= listing.visibility.est_react) {
-                // Mark as reach completed (optional flag)
+               
                 listing.visibility.reachCompleted = true;
             }
         }
