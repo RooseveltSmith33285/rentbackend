@@ -265,8 +265,8 @@ module.exports.resumeBilling = async (req, res) => {
 
 module.exports.handleStripeConnectWebhook = async (req, res) => {
   const stripe = require('stripe')(process.env.STRIPE_LIVE);
-  // const endpointSecret = "whsec_1QTQ8XtkP0rFEVQbyWj282ebsc1WArsZ";
-  const endpointSecret = "whsec_b82d718fbae44ab38035f9ce59915a1c5c7870d001c5d90f38cab27b8e52a15c";
+  const endpointSecret = "whsec_1QTQ8XtkP0rFEVQbyWj282ebsc1WArsZ";
+  // const endpointSecret = "whsec_b82d718fbae44ab38035f9ce59915a1c5c7870d001c5d90f38cab27b8e52a15c";
   const sig = req.headers['stripe-signature'];
 
   let event;
