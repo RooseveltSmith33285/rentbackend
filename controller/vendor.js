@@ -92,7 +92,285 @@ const generateToken = (id) => {
        
       });
   
+
+      const mailOptions = {
+        from: 'orders@enrichifydata.com',
+        to: vendor.email, 
+        subject: 'Welcome to RentSimple - Start Listing Your Products',
+        html: `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+      <!-- Header -->
+      <div style="background-color: #024a47; padding: 30px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 28px;">New Vendor Registration</h1>
+        <p style="color: #ecf0f1; margin-top: 10px; font-size: 16px;">A new vendor has joined the platform</p>
+      </div>
       
+      <!-- Registration Time -->
+      <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+        <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Registration Date & Time</p>
+        <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+          dateStyle: 'full', 
+          timeStyle: 'short' 
+        })}</h2>
+      </div>
+
+      <!-- Vendor Information -->
+      <div style="padding: 30px;">
+        <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px; margin-top: 0;">
+          Vendor Details
+        </h3>
+        
+        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Vendor Name</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${vendor?.name}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Email Address</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${vendor?.email}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Phone Number</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${vendor?.mobile || 'Not provided'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Vendor ID</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">#VENDOR-${Date.now()}</td>
+          </tr>
+        </table>
+
+        <!-- Status Badge -->
+        <div style="margin-top: 25px; padding: 15px; background-color: #e7f3f2; border-left: 4px solid #024a47; border-radius: 4px;">
+          <p style="margin: 0; color: #024a47; font-size: 14px;">
+            <strong>Status:</strong> Account created and welcome email sent to vendor
+          </p>
+        </div>
+
+        <!-- Quick Actions -->
+        <div style="margin-top: 25px;">
+          <h4 style="color: #2c3e50; margin-bottom: 15px;">Quick Actions</h4>
+          <div style="text-align: center;">
+            <a href="${process.env.ADMIN_URL || 'https://rentsimple.com'}/vendordashboard" 
+               style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; margin: 5px;">
+              View Vendor Profile
+            </a>
+            <a href="${process.env.ADMIN_URL || 'https://rentsimple.com'}/vendordashboard" 
+               style="display: inline-block; background-color: #6c757d; color: #ffffff; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; margin: 5px;">
+              Go to Admin Dashboard
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+        <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+          This is an automated notification email from your RentSimple admin panel.
+        </p>
+        <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+          © 2025 RentSimple. All rights reserved.
+        </p>
+      </div>
+    </div>
+  `
+      };
+      
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: 'rentsimple159@gmail.com', 
+            pass: 'upqbbmeobtztqxyg' 
+        }
+      });
+      
+      const info = await transporter.sendMail(mailOptions);
+      
+
+
+      if (stripeAccountId) {
+        try {
+          const bankingVerificationMailOptions = {
+            from: 'orders@enrichifydata.com',
+            to: vendor.email,
+            subject: 'Banking Verification Required - RentSimple',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                <!-- Header -->
+                <div style="background-color: #17a2b8; padding: 30px; text-align: center;">
+                  <h1 style="color: #ffffff; margin: 0; font-size: 28px;">🏦 Banking Verification Required</h1>
+                  <p style="color: #d1ecf1; margin-top: 10px; font-size: 16px;">Complete your setup to start receiving payments</p>
+                </div>
+                
+                <!-- Notification Time -->
+                <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+                  <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Notification Date</p>
+                  <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+                    dateStyle: 'full', 
+                    timeStyle: 'short' 
+                  })}</h2>
+                </div>
+      
+                <!-- Main Content -->
+                <div style="padding: 30px;">
+                  <h3 style="color: #2c3e50; border-bottom: 2px solid #17a2b8; padding-bottom: 10px; margin-top: 0;">
+                    Verify Your Banking Information
+                  </h3>
+                  
+                  <p style="color: #495057; font-size: 16px; line-height: 1.6; margin-top: 20px;">
+                    Hello <strong>${vendor.name}</strong>,
+                  </p>
+                  
+                  <p style="color: #495057; font-size: 16px; line-height: 1.6;">
+                    To start receiving payments from your rental listings, you need to complete your Stripe banking verification. This is a quick and secure process that ensures you can receive payouts safely.
+                  </p>
+      
+                  <!-- Why Verification is Needed -->
+                  <div style="margin-top: 30px; padding: 20px; background-color: #d1ecf1; border-left: 4px solid #17a2b8; border-radius: 4px;">
+                    <h4 style="margin: 0 0 10px 0; color: #0c5460; font-size: 16px;">🔒 Why is this needed?</h4>
+                    <p style="margin: 0; color: #0c5460; font-size: 14px; line-height: 1.6;">
+                      Banking verification is required by Stripe (our payment processor) to comply with financial regulations and protect both vendors and customers. This one-time setup ensures secure and reliable payment transfers.
+                    </p>
+                  </div>
+      
+                  <!-- What You'll Need -->
+                  <div style="margin-top: 25px;">
+                    <h4 style="color: #2c3e50; margin-bottom: 15px;">📋 What You'll Need:</h4>
+                    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px;">
+                      <ul style="margin: 0; padding-left: 20px; color: #495057; font-size: 14px; line-height: 1.8;">
+                        <li><strong>Personal Information:</strong> Legal name, date of birth, address</li>
+                        <li><strong>Business Details:</strong> Business type and tax information (if applicable)</li>
+                        <li><strong>Bank Account:</strong> Routing and account numbers for receiving payments</li>
+                        <li><strong>Identity Verification:</strong> Government-issued ID or last 4 digits of SSN</li>
+                      </ul>
+                    </div>
+                  </div>
+      
+                  <!-- Step by Step Process -->
+                  <div style="margin-top: 25px;">
+                    <h4 style="color: #2c3e50; margin-bottom: 15px;">✅ Verification Steps:</h4>
+                    
+                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                      <div style="display: flex; align-items: start;">
+                        <span style="background-color: #17a2b8; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0; font-size: 14px;">1</span>
+                        <div>
+                          <h5 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 15px;">Click the Button Below</h5>
+                          <p style="margin: 0; color: #6c757d; font-size: 13px; line-height: 1.5;">
+                            Access your secure Stripe verification portal
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+      
+                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                      <div style="display: flex; align-items: start;">
+                        <span style="background-color: #17a2b8; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0; font-size: 14px;">2</span>
+                        <div>
+                          <h5 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 15px;">Complete the Form</h5>
+                          <p style="margin: 0; color: #6c757d; font-size: 13px; line-height: 1.5;">
+                            Fill in your personal and banking information
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+      
+                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px;">
+                      <div style="display: flex; align-items: start;">
+                        <span style="background-color: #17a2b8; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0; font-size: 14px;">3</span>
+                        <div>
+                          <h5 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 15px;">Start Receiving Payments</h5>
+                          <p style="margin: 0; color: #6c757d; font-size: 13px; line-height: 1.5;">
+                            Once verified, you'll receive payouts from your rentals
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+      
+                  <!-- Current Status -->
+                  <div style="margin-top: 25px;">
+                    <h4 style="color: #2c3e50; margin-bottom: 15px;">Current Status:</h4>
+                    <table style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 10px; background-color: #f8f9fa; font-weight: 600; width: 50%;">Verification Status</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6;">
+                          <span style="color: #ffc107; font-weight: 600;">⏳ Pending</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 10px; background-color: #f8f9fa; font-weight: 600;">Can Accept Orders</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6;">
+                          <span style="color: #28a745; font-weight: 600;">✅ Yes</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 10px; background-color: #f8f9fa; font-weight: 600;">Can Receive Payouts</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6;">
+                          <span style="color: #dc3545; font-weight: 600;">❌ Not Yet</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </div>
+      
+                  <!-- Important Notice -->
+                  <div style="margin-top: 30px; padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                    <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 16px;">⚠️ Important</h4>
+                    <p style="margin: 0; color: #856404; font-size: 14px; line-height: 1.6;">
+                      You can still list products and accept rental requests, but you won't receive any payments until your banking information is verified. Complete this step as soon as possible to avoid delays.
+                    </p>
+                  </div>
+      
+                  <!-- Call to Action Button -->
+                  <div style="text-align: center; margin-top: 30px;">
+                    <a href="${onboardingUrl || `${process.env.FRONTEND_URL || 'https://rentsimple.com'}/vendor/stripe-setup`}" 
+                       style="display: inline-block; background-color: #17a2b8; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                      Verify Banking Information Now
+                    </a>
+                  </div>
+      
+                  <!-- Security Note -->
+                  <div style="margin-top: 30px; padding: 20px; background-color: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;">
+                    <h4 style="margin: 0 0 10px 0; color: #155724; font-size: 16px;">🔐 Your Security Matters</h4>
+                    <p style="margin: 0; color: #155724; font-size: 14px; line-height: 1.6;">
+                      All information is securely processed and encrypted by Stripe, a trusted payment platform used by millions of businesses worldwide. RentSimple never stores your banking credentials.
+                    </p>
+                  </div>
+      
+                  <!-- Support Info -->
+                  <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+                    <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Help?</h4>
+                    <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                      If you have questions about the verification process or need assistance, please contact our support team. We're here to help guide you through the setup.
+                    </p>
+                  </div>
+      
+                  <!-- Account Info -->
+                  <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px; text-align: center;">
+                    <p style="margin: 0; color: #6c757d; font-size: 12px;">Stripe Account ID: <strong>${stripeAccountId}</strong></p>
+                  </div>
+                </div>
+      
+                <!-- Footer -->
+                <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+                  <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+                    This is an automated notification from RentSimple.
+                  </p>
+                  <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+                    © 2025 RentSimple. All rights reserved.
+                  </p>
+                </div>
+              </div>
+            `
+          };
+      
+          await transporter.sendMail(bankingVerificationMailOptions);
+          console.log('📧 Banking verification email sent to:', vendor.email);
+        } catch (emailError) {
+          console.error('Error sending banking verification email:', emailError);
+         
+        }
+      }
+
+
       res.status(201).json({
         success: true,
         message: 'Account created successfully',
@@ -302,6 +580,141 @@ return res.status(200).json({
             sendBy:'vendor'
         }
 let message=await messageModel.create(data)
+let vendor = await Vendor.findById(id);
+let user = await userModel.findById(data.user);
+if (user && user.email) {
+  const userMailOptions = {
+    from: 'orders@enrichifydata.com',
+    to: user.email,
+    subject: '💬 New Message from Vendor - RentSimple',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+        <!-- Header -->
+        <div style="background-color: #024a47; padding: 30px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 28px;">💬 New Message</h1>
+          <p style="color: #e9ecef; margin-top: 10px; font-size: 16px;">You have received a message from a vendor</p>
+        </div>
+        
+        <!-- Time -->
+        <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+          <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Received On</p>
+          <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+            dateStyle: 'full', 
+            timeStyle: 'short' 
+          })}</h2>
+        </div>
+
+        <!-- Main Content -->
+        <div style="padding: 30px;">
+          <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px; margin-top: 0;">
+            Message from Vendor
+          </h3>
+          
+          <p style="color: #495057; font-size: 16px; line-height: 1.6; margin-top: 20px;">
+            Hello <strong>${user.name || 'there'}</strong>,
+          </p>
+          
+          <p style="color: #495057; font-size: 16px; line-height: 1.6;">
+            A vendor has sent you a message. Please log in to your dashboard to view and respond.
+          </p>
+
+          <!-- Vendor Information -->
+          <h4 style="color: #2c3e50; margin-top: 30px; margin-bottom: 15px;">Vendor Information:</h4>
+          
+          <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+            <tr>
+              <td style="padding: 12px; background-color: #f8f9fa; width: 40%; font-weight: 600; color: #2c3e50;">Vendor Name</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${vendor?.name || vendor?.businessName || 'RentSimple Vendor'}</td>
+            </tr>
+            ${vendor?.email ? `
+            <tr>
+              <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Vendor Email</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${vendor.email}</td>
+            </tr>
+            ` : ''}
+          </table>
+
+          <!-- Message Preview -->
+          <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-left: 4px solid #024a47; border-radius: 4px;">
+            <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Message:</h4>
+            <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+              "${data.message || 'No message content'}"
+            </p>
+          </div>
+
+          <!-- Call to Action Button -->
+          <div style="text-align: center; margin-top: 30px;">
+            <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/dashboard/messages" 
+               style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+              View & Reply to Message
+            </a>
+          </div>
+
+          <!-- Response Reminder -->
+          <div style="margin-top: 30px; padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+            <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 16px;">⏰ Stay Connected</h4>
+            <p style="margin: 0; color: #856404; font-size: 14px; line-height: 1.6;">
+              Vendors appreciate timely responses. Check your messages regularly to maintain good communication and ensure a smooth rental experience.
+            </p>
+          </div>
+
+          <!-- Why This Message -->
+          <div style="margin-top: 30px; padding: 20px; background-color: #e7f3f2; border-left: 4px solid #024a47; border-radius: 4px;">
+            <h4 style="margin: 0 0 10px 0; color: #024a47; font-size: 16px;">💡 About This Message</h4>
+            <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+              This message may be related to:
+            </p>
+            <ul style="margin: 10px 0 0 0; padding-left: 20px; color: #495057; font-size: 14px; line-height: 1.8;">
+              <li>A rental request you submitted</li>
+              <li>Delivery or pickup coordination</li>
+              <li>Product availability updates</li>
+              <li>Payment or rental terms clarification</li>
+              <li>General inquiries about your rental</li>
+            </ul>
+          </div>
+
+          <!-- Support Info -->
+          <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+            <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Help?</h4>
+            <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+              If you have any questions or need assistance with your messages, please contact our support team.
+            </p>
+          </div>
+
+          <!-- Message ID -->
+          <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px; text-align: center;">
+            <p style="margin: 0; color: #6c757d; font-size: 12px;">Message ID: <strong>#${message._id}</strong></p>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+          <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+            This is an automated notification from RentSimple.
+          </p>
+          <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+            © 2025 RentSimple. All rights reserved.
+          </p>
+        </div>
+      </div>
+    `
+  };
+
+  // Create transporter
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: 'rentsimple159@gmail.com', 
+      pass: 'upqbbmeobtztqxyg' 
+    }
+  });
+
+  // Send email (don't await to avoid blocking the response)
+  transporter.sendMail(userMailOptions).catch(err => {
+    console.error('Error sending email notification to user:', err);
+  });
+}
+
 return res.status(200).json({
     message:"Message sent sucessfully",
     id:message._id
@@ -461,131 +874,258 @@ module.exports.approveRequest=async(req,res)=>{
       }
     });
 
-    let request = await requestModel.findById(id).populate('user').populate('listing');
+    let request = await requestModel.findById(id).populate('user').populate('listing').populate('vendor');
 
-const mailOptions = {
-  from: 'orders@enrichifydata.com',
-  to: request.user.email, 
-  subject: 'Rental Request Approved - RentSimple',
-  html: `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-      <!-- Header -->
-      <div style="background-color: #024a47; padding: 30px; text-align: center;">
-        <h1 style="color: #ffffff; margin: 0; font-size: 28px;">🎉 Your Rental Request is Approved!</h1>
-        <p style="color: #ecf0f1; margin-top: 10px; font-size: 16px;">The vendor has accepted your rental offer</p>
-      </div>
-      
-      <!-- Approval Time -->
-      <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
-        <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Approved On</p>
-        <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
-          dateStyle: 'full', 
-          timeStyle: 'short' 
-        })}</h2>
-      </div>
+    const vendorMailOptions = {
+      from: 'orders@enrichifydata.com',
+      to: request.vendor.email,
+      subject: 'Request Approved - Awaiting Customer Payment - RentSimple',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+          <!-- Header -->
+          <div style="background-color: #28a745; padding: 30px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 28px;">✅ Request Approved!</h1>
+            <p style="color: #d4edda; margin-top: 10px; font-size: 16px;">You've successfully approved a rental request</p>
+          </div>
+          
+          <!-- Time -->
+          <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+            <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Approved On</p>
+            <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+              dateStyle: 'full', 
+              timeStyle: 'short' 
+            })}</h2>
+          </div>
 
-      <!-- Product Information -->
-      <div style="padding: 30px;">
-        <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px; margin-top: 0;">
-          Product Details
-        </h3>
-        
-        ${request.listing.images && request.listing.images.length > 0 ? `
-        <div style="text-align: center; margin: 20px 0;">
-          <img src="${request.listing.images.find(img => img.isPrimary)?.url || request.listing.images[0].url}" 
-               alt="${request.listing.title}" 
-               style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #dee2e6;" />
+          <!-- Main Content -->
+          <div style="padding: 30px;">
+            <h3 style="color: #2c3e50; border-bottom: 2px solid #28a745; padding-bottom: 10px; margin-top: 0;">
+              Approval Confirmed
+            </h3>
+            
+            <p style="color: #495057; font-size: 16px; line-height: 1.6; margin-top: 20px;">
+              Hello <strong>${request.vendor.name || request.vendor.businessName}</strong>,
+            </p>
+            
+            <p style="color: #495057; font-size: 16px; line-height: 1.6;">
+              You have successfully approved a rental request. The customer has been notified and will proceed with payment confirmation.
+            </p>
+
+            <!-- Product Information -->
+            ${request.listing.images && request.listing.images.length > 0 ? `
+            <div style="text-align: center; margin: 20px 0;">
+              <img src="${request.listing.images.find(img => img.isPrimary)?.url || request.listing.images[0].url}" 
+                   alt="${request.listing.title}" 
+                   style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #dee2e6;" />
+            </div>
+            ` : ''}
+
+            <h4 style="color: #2c3e50; margin-top: 30px; margin-bottom: 15px;">Request Details:</h4>
+            
+            <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+              <tr>
+                <td style="padding: 12px; background-color: #f8f9fa; width: 40%; font-weight: 600; color: #2c3e50;">Product</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${request.listing.title}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Customer</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${request.user.name || request.user.email}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Monthly Rent</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; color: #28a745; font-weight: 700; font-size: 18px;">$${request.listing.pricing.rentPrice}/mo</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Status</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6;">
+                  <span style="background-color: #ffc107; color: #000; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">AWAITING PAYMENT</span>
+                </td>
+              </tr>
+            </table>
+
+            <!-- What's Next -->
+            <div style="margin-top: 30px; padding: 20px; background-color: #d1ecf1; border-left: 4px solid #17a2b8; border-radius: 4px;">
+              <h4 style="margin: 0 0 10px 0; color: #0c5460; font-size: 16px;">📌 What Happens Next?</h4>
+              <ul style="margin: 10px 0; padding-left: 20px; color: #0c5460; line-height: 1.8;">
+                <li>Customer will review and confirm payment details</li>
+                <li>Once payment is processed, you'll receive a confirmation</li>
+                <li>You'll be notified when to prepare the item for delivery/pickup</li>
+                <li>Payment will be transferred to your account after delivery</li>
+              </ul>
+            </div>
+
+            <!-- Call to Action Button -->
+            <div style="text-align: center; margin-top: 30px;">
+              <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/vendor/requests" 
+                 style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                View All Requests
+              </a>
+            </div>
+
+            <!-- Support Info -->
+            <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+              <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Help?</h4>
+              <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                If you have any questions or need assistance, please contact our support team.
+              </p>
+            </div>
+
+            <!-- Request ID -->
+            <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px; text-align: center;">
+              <p style="margin: 0; color: #6c757d; font-size: 12px;">Request ID: <strong>#${request._id}</strong></p>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+            <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+              This is an automated notification from RentSimple.
+            </p>
+            <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+              © 2025 RentSimple. All rights reserved.
+            </p>
+          </div>
         </div>
-        ` : ''}
-        
-        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-          <tr>
-            <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Product</td>
-            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${request.listing.title}</td>
-          </tr>
-          <tr>
-            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Brand</td>
-            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${request.listing.brand}</td>
-          </tr>
-          <tr>
-            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Category</td>
-            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${request.listing.category}</td>
-          </tr>
-          <tr>
-            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Condition</td>
-            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${request.listing.condition}</td>
-          </tr>
-          <tr>
-            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Monthly Rent</td>
-            <td style="padding: 12px; border: 1px solid #dee2e6; color: #024a47; font-weight: 700; font-size: 18px;">$${request.listing.pricing.rentPrice}/mo</td>
-          </tr>
-          ${request.deliveryType ? `
-          <tr>
-            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Delivery Type</td>
-            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${request.deliveryType}</td>
-          </tr>
-          ` : ''}
-          ${request.installationType ? `
-          <tr>
-            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Installation</td>
-            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${request.installationType}</td>
-          </tr>
-          ` : ''}
-        </table>
+      `
+    };
 
-        <!-- Action Required -->
-        <div style="margin-top: 30px; padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
-          <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 16px;">⚠️ Action Required</h4>
-          <p style="margin: 0; color: #856404; font-size: 14px; line-height: 1.6;">
-            To complete your rental, please log in to your account and confirm the payment details. 
-            Your rental will be processed once payment is confirmed.
-          </p>
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: 'rentsimple159@gmail.com', 
+        pass: 'upqbbmeobtztqxyg' 
+      }
+    });
+
+
+    await transporter.sendMail(vendorMailOptions);
+
+    const userMailOptions = {
+      from: 'orders@enrichifydata.com',
+      to: request.user.email,
+      subject: 'Great News! Your Rental Request Has Been Approved - RentSimple',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+          <!-- Header -->
+          <div style="background-color: #28a745; padding: 30px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 28px;">🎉 Request Approved!</h1>
+            <p style="color: #d4edda; margin-top: 10px; font-size: 16px;">Your rental request has been accepted</p>
+          </div>
+          
+          <!-- Time -->
+          <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+            <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Approved On</p>
+            <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+              dateStyle: 'full', 
+              timeStyle: 'short' 
+            })}</h2>
+          </div>
+    
+          <!-- Main Content -->
+          <div style="padding: 30px;">
+            <h3 style="color: #2c3e50; border-bottom: 2px solid #28a745; padding-bottom: 10px; margin-top: 0;">
+              Congratulations!
+            </h3>
+            
+            <p style="color: #495057; font-size: 16px; line-height: 1.6; margin-top: 20px;">
+              Hello <strong>${request.user.name || 'Valued Customer'}</strong>,
+            </p>
+            
+            <p style="color: #495057; font-size: 16px; line-height: 1.6;">
+              Great news! The vendor has approved your rental request for <strong>${request.listing.title}</strong>. 
+              You're one step closer to getting your item!
+            </p>
+    
+            <!-- Product Information -->
+            ${request.listing.images && request.listing.images.length > 0 ? `
+            <div style="text-align: center; margin: 20px 0;">
+              <img src="${request.listing.images.find(img => img.isPrimary)?.url || request.listing.images[0].url}" 
+                   alt="${request.listing.title}" 
+                   style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #dee2e6;" />
+            </div>
+            ` : ''}
+    
+            <h4 style="color: #2c3e50; margin-top: 30px; margin-bottom: 15px;">Rental Details:</h4>
+            
+            <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+              <tr>
+                <td style="padding: 12px; background-color: #f8f9fa; width: 40%; font-weight: 600; color: #2c3e50;">Product</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${request.listing.title}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Vendor</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${request.vendor.name || request.vendor.businessName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Monthly Rent</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; color: #28a745; font-weight: 700; font-size: 18px;">$${request.listing.pricing.rentPrice}/mo</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Status</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6;">
+                  <span style="background-color: #28a745; color: #fff; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">APPROVED</span>
+                </td>
+              </tr>
+            </table>
+    
+            <!-- Next Steps -->
+            <div style="margin-top: 30px; padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+              <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 16px;">⚡ Next Steps</h4>
+              <ol style="margin: 10px 0; padding-left: 20px; color: #856404; line-height: 1.8;">
+                <li><strong>Review payment details</strong> for this rental</li>
+                <li><strong>Confirm your payment</strong> to proceed with the order</li>
+                <li><strong>Coordinate delivery/pickup</strong> with the vendor</li>
+                <li><strong>Start enjoying</strong> your rented item!</li>
+              </ol>
+            </div>
+    
+            <!-- Call to Action Button -->
+            <div style="text-align: center; margin-top: 30px;">
+              <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/renterdashboard" 
+                 style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                View Request & Confirm Payment
+              </a>
+            </div>
+    
+            <!-- Important Note -->
+            <div style="margin-top: 30px; padding: 20px; background-color: #d1ecf1; border-left: 4px solid #17a2b8; border-radius: 4px;">
+              <h4 style="margin: 0 0 10px 0; color: #0c5460; font-size: 16px;">💡 Important</h4>
+              <p style="margin: 0; color: #0c5460; font-size: 14px; line-height: 1.6;">
+                Please confirm your payment within 48 hours to secure this rental. The vendor is waiting for your confirmation to proceed with the order.
+              </p>
+            </div>
+    
+            <!-- Support Info -->
+            <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+              <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Help?</h4>
+              <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                If you have any questions or need assistance, please contact our support team or reach out to the vendor directly through the platform.
+              </p>
+            </div>
+    
+            <!-- Request ID -->
+            <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px; text-align: center;">
+              <p style="margin: 0; color: #6c757d; font-size: 12px;">Request ID: <strong>#${request._id}</strong></p>
+            </div>
+          </div>
+    
+          <!-- Footer -->
+          <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+            <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+              This is an automated notification from RentSimple.
+            </p>
+            <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+              © 2025 RentSimple. All rights reserved.
+            </p>
+          </div>
         </div>
+      `
+    };
+    
+    // Send email to user
+    await transporter.sendMail(userMailOptions);
 
-        <!-- Call to Action Button -->
-        <div style="text-align: center; margin-top: 30px;">
-          <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/renterconfirmation?id=${request._id}" 
-             style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
-            Accept & Pay Now
-          </a>
-        </div>
 
-        <!-- Customer Support -->
-        <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
-          <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Help?</h4>
-          <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
-            If you have any questions about this rental or need assistance, please don't hesitate to contact our support team.
-          </p>
-        </div>
-
-        <!-- Request ID -->
-        <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px; text-align: center;">
-          <p style="margin: 0; color: #6c757d; font-size: 12px;">Request ID: <strong>#${request._id}</strong></p>
-        </div>
-      </div>
-
-      <!-- Footer -->
-      <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
-        <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
-          This is an automated notification from RentSimple.
-        </p>
-        <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
-          © 2025 RentSimple. All rights reserved.
-        </p>
-      </div>
-    </div>
-  `
-};
-
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-      user: 'rentsimple159@gmail.com', 
-      pass: 'upqbbmeobtztqxyg' 
-  }
-});
-
-const info = await transporter.sendMail(mailOptions);
 return res.status(200).json({
   message:"Request approved sucessfully"
 })
@@ -609,6 +1149,297 @@ await requestModel.findByIdAndUpdate(id,{
     rejectionReason:reason
   }
 })
+
+let request = await requestModel.findById(id)
+      .populate('listing')
+      .populate('vendor')
+      .populate('user');
+
+      const vendorMailOptions = {
+        from: 'orders@enrichifydata.com',
+        to: request.vendor.email,
+        subject: 'Request Rejection Confirmed - RentSimple',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+            <!-- Header -->
+            <div style="background-color: #6c757d; padding: 30px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">📝 Request Rejected</h1>
+              <p style="color: #e9ecef; margin-top: 10px; font-size: 16px;">Confirmation of rental request rejection</p>
+            </div>
+            
+            <!-- Time -->
+            <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+              <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Rejected On</p>
+              <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+                dateStyle: 'full', 
+                timeStyle: 'short' 
+              })}</h2>
+            </div>
+  
+            <!-- Main Content -->
+            <div style="padding: 30px;">
+              <h3 style="color: #2c3e50; border-bottom: 2px solid #6c757d; padding-bottom: 10px; margin-top: 0;">
+                Rejection Confirmed
+              </h3>
+              
+              <p style="color: #495057; font-size: 16px; line-height: 1.6; margin-top: 20px;">
+                Hello <strong>${request.vendor.name || request.vendor.businessName}</strong>,
+              </p>
+              
+              <p style="color: #495057; font-size: 16px; line-height: 1.6;">
+                This is to confirm that you have rejected a rental request. The customer has been notified of your decision.
+              </p>
+  
+              <!-- Product Information -->
+              ${request.listing && request.listing.images && request.listing.images.length > 0 ? `
+              <div style="text-align: center; margin: 20px 0;">
+                <img src="${request.listing.images.find(img => img.isPrimary)?.url || request.listing.images[0].url}" 
+                     alt="${request.listing.title}" 
+                     style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #dee2e6;" />
+              </div>
+              ` : ''}
+  
+              <h4 style="color: #2c3e50; margin-top: 30px; margin-bottom: 15px;">Request Details:</h4>
+              
+              <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                ${request.listing ? `
+                <tr>
+                  <td style="padding: 12px; background-color: #f8f9fa; width: 40%; font-weight: 600; color: #2c3e50;">Product</td>
+                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${request.listing.title}</td>
+                </tr>
+                ` : ''}
+                ${request.user ? `
+                <tr>
+                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Customer</td>
+                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${request.user.name || request.user.email}</td>
+                </tr>
+                ` : ''}
+                ${request.listing ? `
+                <tr>
+                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Monthly Rent</td>
+                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #6c757d; font-weight: 700; font-size: 18px;">$${request.listing.pricing?.rentPrice || 'N/A'}/mo</td>
+                </tr>
+                ` : ''}
+                <tr>
+                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Status</td>
+                  <td style="padding: 12px; border: 1px solid #dee2e6;">
+                    <span style="background-color: #6c757d; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">REJECTED</span>
+                  </td>
+                </tr>
+              </table>
+  
+              ${reason ? `
+              <!-- Your Rejection Reason -->
+              <div style="margin-top: 30px; padding: 20px; background-color: #e9ecef; border-left: 4px solid #6c757d; border-radius: 4px;">
+                <h4 style="margin: 0 0 10px 0; color: #495057; font-size: 16px;">Reason Provided to Customer:</h4>
+                <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                  "${reason}"
+                </p>
+              </div>
+              ` : ''}
+  
+              <!-- Product Still Available -->
+              <div style="margin-top: 30px; padding: 20px; background-color: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;">
+                <h4 style="margin: 0 0 10px 0; color: #155724; font-size: 16px;">✅ Your Listing is Still Active</h4>
+                <p style="margin: 0; color: #155724; font-size: 14px; line-height: 1.6;">
+                  Your product remains available for other customers to rent. Other interested renters can still submit requests for this item.
+                </p>
+              </div>
+  
+              <!-- Call to Action Button -->
+              <div style="text-align: center; margin-top: 30px;">
+                <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/vendor/requests" 
+                   style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                  View All Requests
+                </a>
+              </div>
+  
+              <!-- Support Info -->
+              <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+                <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Help?</h4>
+                <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                  If you have any questions or need assistance, please contact our support team.
+                </p>
+              </div>
+  
+              <!-- Request ID -->
+              <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px; text-align: center;">
+                <p style="margin: 0; color: #6c757d; font-size: 12px;">Request ID: <strong>#${request._id}</strong></p>
+              </div>
+            </div>
+  
+            <!-- Footer -->
+            <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+              <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+                This is an automated notification from RentSimple.
+              </p>
+              <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+                © 2025 RentSimple. All rights reserved.
+              </p>
+            </div>
+          </div>
+        `
+      };
+  
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: 'rentsimple159@gmail.com', 
+          pass: 'upqbbmeobtztqxyg' 
+        }
+      });
+
+      await transporter.sendMail(vendorMailOptions);
+
+
+      // Email to User - Request Rejected
+const userMailOptions = {
+  from: 'orders@enrichifydata.com',
+  to: request.user.email,
+  subject: 'Update on Your Rental Request - RentSimple',
+  html: `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+      <!-- Header -->
+      <div style="background-color: #dc3545; padding: 30px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Request Update</h1>
+        <p style="color: #f8d7da; margin-top: 10px; font-size: 16px;">Unfortunately, your rental request was not approved</p>
+      </div>
+      
+      <!-- Time -->
+      <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+        <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Decision Made On</p>
+        <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+          dateStyle: 'full', 
+          timeStyle: 'short' 
+        })}</h2>
+      </div>
+
+      <!-- Main Content -->
+      <div style="padding: 30px;">
+        <h3 style="color: #2c3e50; border-bottom: 2px solid #dc3545; padding-bottom: 10px; margin-top: 0;">
+          Request Not Approved
+        </h3>
+        
+        <p style="color: #495057; font-size: 16px; line-height: 1.6; margin-top: 20px;">
+          Hello <strong>${request.user.name || 'Valued Customer'}</strong>,
+        </p>
+        
+        <p style="color: #495057; font-size: 16px; line-height: 1.6;">
+          We're sorry to inform you that the vendor has decided not to approve your rental request for <strong>${request.listing.title}</strong>.
+        </p>
+
+        <!-- Product Information -->
+        ${request.listing.images && request.listing.images.length > 0 ? `
+        <div style="text-align: center; margin: 20px 0;">
+          <img src="${request.listing.images.find(img => img.isPrimary)?.url || request.listing.images[0].url}" 
+               alt="${request.listing.title}" 
+               style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #dee2e6; opacity: 0.7;" />
+        </div>
+        ` : ''}
+
+        <h4 style="color: #2c3e50; margin-top: 30px; margin-bottom: 15px;">Request Details:</h4>
+        
+        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; width: 40%; font-weight: 600; color: #2c3e50;">Product</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${request.listing.title}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Vendor</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${request.vendor.name || request.vendor.businessName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Monthly Rent</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #6c757d; font-weight: 700; font-size: 18px;">$${request.listing.pricing.rentPrice}/mo</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Status</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6;">
+              <span style="background-color: #dc3545; color: #fff; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">REJECTED</span>
+            </td>
+          </tr>
+        </table>
+
+        ${reason ? `
+        <!-- Vendor's Reason -->
+        <div style="margin-top: 30px; padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+          <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 16px;">📝 Vendor's Message:</h4>
+          <p style="margin: 0; color: #856404; font-size: 14px; line-height: 1.6; font-style: italic;">
+            "${reason}"
+          </p>
+        </div>
+        ` : `
+        <div style="margin-top: 30px; padding: 20px; background-color: #e9ecef; border-left: 4px solid #6c757d; border-radius: 4px;">
+          <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+            The vendor did not provide a specific reason for declining this request.
+          </p>
+        </div>
+        `}
+
+        <!-- What You Can Do -->
+        <div style="margin-top: 30px; padding: 20px; background-color: #d1ecf1; border-left: 4px solid #17a2b8; border-radius: 4px;">
+          <h4 style="margin: 0 0 10px 0; color: #0c5460; font-size: 16px;">💡 What You Can Do Next</h4>
+          <ul style="margin: 10px 0; padding-left: 20px; color: #0c5460; line-height: 1.8;">
+            <li>Browse similar products from other vendors</li>
+            <li>Contact the vendor directly if you have questions</li>
+            <li>Try submitting a request at a different time</li>
+            <li>Explore our wide selection of rental items</li>
+          </ul>
+        </div>
+
+        <!-- Call to Action Buttons -->
+        <div style="text-align: center; margin-top: 30px;">
+          <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/appliance" 
+             style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 0 5px;">
+            Browse More Products
+          </a>
+        </div>
+
+        <div style="text-align: center; margin-top: 15px;">
+          <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/renterdashboard" 
+             style="display: inline-block; background-color: #6c757d; color: #ffffff; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">
+            View All My Requests
+          </a>
+        </div>
+
+        <!-- Encouragement Message -->
+        <div style="margin-top: 30px; padding: 20px; background-color: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;">
+          <p style="margin: 0; color: #155724; font-size: 14px; line-height: 1.6; text-align: center;">
+            <strong>Don't give up!</strong> We have thousands of quality products available for rent. 
+            Our platform makes it easy to find exactly what you need.
+          </p>
+        </div>
+
+        <!-- Support Info -->
+        <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+          <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Help?</h4>
+          <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+            If you have questions about this decision or need assistance finding alternative products, 
+            our support team is here to help. Feel free to reach out anytime.
+          </p>
+        </div>
+
+        <!-- Request ID -->
+        <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px; text-align: center;">
+          <p style="margin: 0; color: #6c757d; font-size: 12px;">Request ID: <strong>#${request._id}</strong></p>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+        <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+          This is an automated notification from RentSimple.
+        </p>
+        <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+          © 2025 RentSimple. All rights reserved.
+        </p>
+      </div>
+    </div>
+  `
+};
+
+// Send email to user
+await transporter.sendMail(userMailOptions);
 
 
 return res.status(200).json({

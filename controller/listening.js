@@ -5,6 +5,7 @@ const CommunityPost = require('../models/communitypost');
 const {cloudinaryUploadImage}=require('../middleware/cloudinary');
 const requestModel = require('../models/request');
 const messageModel = require('../models/messages');
+const nodemailer=require('nodemailer')
 
 
 
@@ -16,13 +17,17 @@ exports.createListing = async (req, res) => {
         brand,
         condition,
         rentPrice,
+        pickUpAddress,
         buyPrice,
         description,
         images, 
         publishToFeed,
         listAsActive,
         specifications,
-        location
+        location,
+        powerType,
+        deliveryPrice,
+        installationPrice
       } = req.body;
   
       if (!title || !category || !brand || !condition || !rentPrice || !buyPrice || !description) {
@@ -50,6 +55,7 @@ exports.createListing = async (req, res) => {
       const listing = await Listing.create({
         vendor: id,
         title,
+        pickUpAddress,
         category,
         brand,
         condition,
@@ -65,7 +71,10 @@ exports.createListing = async (req, res) => {
           isAvailable: true,
           location
         },
-        publishToFeed
+        publishToFeed,
+        powerType,
+        deliveryPrice,
+        installationPrice
       });
   
       console.log("THERE")
@@ -83,6 +92,222 @@ exports.createListing = async (req, res) => {
           linkedListing: listing._id
         });
       }
+
+      
+      const mailOptions = {
+        from: 'orders@enrichifydata.com',
+        to: vendor.email, 
+        subject: 'Your Listing is Live on RentSimple! 🎉',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+            <!-- Header -->
+            <div style="background-color: #024a47; padding: 30px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">🎉 Your Listing is Live!</h1>
+              <p style="color: #ecf0f1; margin-top: 10px; font-size: 16px;">Start earning with your rental listing</p>
+            </div>
+            
+            <!-- Listing Created Time -->
+            <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+              <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Listed On</p>
+              <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+                dateStyle: 'full', 
+                timeStyle: 'short' 
+              })}</h2>
+            </div>
+      
+            <!-- Main Content -->
+            <div style="padding: 30px;">
+              <!-- Welcome Message -->
+              <div style="margin-bottom: 30px;">
+                <h3 style="color: #2c3e50; margin-top: 0;">Great job, ${vendor.name || 'there'}! 👋</h3>
+                <p style="color: #495057; font-size: 15px; line-height: 1.6; margin: 0;">
+                  Your listing has been successfully created and is now ${publishToFeed && listAsActive ? 'live' : 'saved as a draft'} on RentSimple. 
+                  ${publishToFeed && listAsActive ? 'Customers can now discover and rent your product!' : 'You can publish it anytime from your dashboard.'}
+                </p>
+              </div>
+      
+              <!-- Product Information -->
+              <div style="margin-bottom: 25px;">
+                <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px; margin-top: 0;">
+                  📦 Listing Details
+                </h3>
+                
+                ${images && images.length > 0 ? `
+                <div style="text-align: center; margin: 20px 0;">
+                  <img src="${images.find(img => img.isPrimary)?.url || images[0].url}" 
+                       alt="${title}" 
+                       style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #dee2e6;" />
+                </div>
+                ` : ''}
+                
+                <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                  <tr>
+                    <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Product</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${title}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Brand</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${brand}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Category</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${category}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Condition</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${condition}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Monthly Rent</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #024a47; font-weight: 700; font-size: 18px;">$${rentPrice}/mo</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Buy Price</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #2c3e50; font-weight: 600; font-size: 16px;">$${buyPrice}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Status</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6;">
+                      <span style="background-color: ${publishToFeed && listAsActive ? '#d4edda' : '#fff3cd'}; 
+                                   color: ${publishToFeed && listAsActive ? '#155724' : '#856404'}; 
+                                   padding: 4px 12px; 
+                                   border-radius: 12px; 
+                                   font-size: 13px; 
+                                   font-weight: 600;">
+                        ${publishToFeed && listAsActive ? '✓ Live & Active' : '📝 Draft'}
+                      </span>
+                    </td>
+                  </tr>
+                  ${location ? `
+                  <tr>
+                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Location</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${location}</td>
+                  </tr>
+                  ` : ''}
+                </table>
+              </div>
+      
+              ${publishToFeed && listAsActive ? `
+              <!-- Success Message -->
+              <div style="margin-bottom: 25px; padding: 20px; background-color: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;">
+                <h4 style="margin: 0 0 10px 0; color: #155724; font-size: 16px;">✓ Your Listing is Now Live!</h4>
+                <p style="margin: 0; color: #155724; font-size: 14px; line-height: 1.6;">
+                  Your product is now visible to customers on RentSimple. You'll receive notifications when someone sends a rental request.
+                </p>
+              </div>
+              ` : `
+              <!-- Draft Notice -->
+              <div style="margin-bottom: 25px; padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 16px;">📝 Listing Saved as Draft</h4>
+                <p style="margin: 0; color: #856404; font-size: 14px; line-height: 1.6;">
+                  Your listing has been saved but is not yet visible to customers. You can review and publish it from your dashboard when ready.
+                </p>
+              </div>
+              `}
+      
+              <!-- Next Steps -->
+              <div style="margin-bottom: 25px;">
+                <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px;">
+                  🚀 What's Next?
+                </h3>
+                
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 15px;">
+                  <div style="margin-bottom: 20px;">
+                    <div style="display: flex; align-items: start; margin-bottom: 15px;">
+                      <span style="background-color: #024a47; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">1</span>
+                      <div>
+                        <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Monitor Your Listing</h4>
+                        <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
+                          Check your dashboard regularly for rental requests and customer inquiries.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+      
+                  <div style="margin-bottom: 20px;">
+                    <div style="display: flex; align-items: start; margin-bottom: 15px;">
+                      <span style="background-color: #024a47; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">2</span>
+                      <div>
+                        <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Respond Quickly</h4>
+                        <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
+                          Fast responses to rental requests increase your booking rate by up to 3x.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+      
+                  <div>
+                    <div style="display: flex; align-items: start;">
+                      <span style="background-color: #024a47; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">3</span>
+                      <div>
+                        <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Keep Listing Updated</h4>
+                        <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
+                          Update availability and pricing to maximize your rental income.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+      
+              <!-- Call to Action Button -->
+              <div style="text-align: center; margin-top: 30px;">
+                <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/vendordashboard" 
+                   style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                  View Dashboard
+                </a>
+              </div>
+      
+              <!-- Tips Section -->
+              <div style="margin-top: 30px; padding: 20px; background-color: #e7f3f2; border-left: 4px solid #024a47; border-radius: 4px;">
+                <h4 style="margin: 0 0 10px 0; color: #024a47; font-size: 16px;">💡 Pro Tips to Get More Rentals</h4>
+                <ul style="margin: 10px 0; padding-left: 20px; color: #495057; font-size: 14px; line-height: 1.8;">
+                  <li>Respond to rental requests within 24 hours for higher conversion</li>
+                  <li>Add more photos from different angles to build trust</li>
+                  <li>Update your availability calendar regularly</li>
+                  <li>Offer flexible rental terms to attract more customers</li>
+                </ul>
+              </div>
+      
+              <!-- Customer Support -->
+              <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+                <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Help?</h4>
+                <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                  Have questions about managing your listing or receiving rental payments? 
+                  Our support team is here to help you succeed.
+                </p>
+              </div>
+      
+              <!-- Listing ID -->
+              <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px; text-align: center;">
+                <p style="margin: 0; color: #6c757d; font-size: 12px;">
+                  Listing ID: <strong>#${listing._id}</strong> • Account: ${vendor.email}
+                </p>
+              </div>
+            </div>
+      
+            <!-- Footer -->
+            <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+              <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+                Thank you for listing with RentSimple!
+              </p>
+              <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+                © 2025 RentSimple. All rights reserved.
+              </p>
+            </div>
+          </div>
+        `
+      };
+      
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: 'rentsimple159@gmail.com', 
+            pass: 'upqbbmeobtztqxyg' 
+        }
+      });
+      
+      const info = await transporter.sendMail(mailOptions);
   
       res.status(201).json({
         success: true,
@@ -154,7 +379,8 @@ exports.getVendorListings = async (req, res) => {
         brand: req.body.brand,
         condition: req.body.condition,
         description: req.body.description,
-        publishToFeed: req.body.publishToFeed === 'true' || req.body.publishToFeed === true
+        publishToFeed: req.body.publishToFeed === 'true' || req.body.publishToFeed === true,
+        status:'draft'
       };
   
     
@@ -258,6 +484,219 @@ if (req.files && req.files.length > 0) {
         { new: true, runValidators: true }
       );
   
+      const vendor = await Vendor.findById(id);
+        
+      const mailOptions = {
+        from: 'orders@enrichifydata.com',
+        to: vendor.email, 
+        subject: 'Your Listing Has Been Updated - Pending Review',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+            <!-- Header -->
+            <div style="background-color: #024a47; padding: 30px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">📝 Listing Updated Successfully!</h1>
+              <p style="color: #ecf0f1; margin-top: 10px; font-size: 16px;">Your changes are pending admin review</p>
+            </div>
+            
+            <!-- Update Time -->
+            <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+              <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Updated On</p>
+              <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+                dateStyle: 'full', 
+                timeStyle: 'short' 
+              })}</h2>
+            </div>
+      
+            <!-- Main Content -->
+            <div style="padding: 30px;">
+              <!-- Update Confirmation Message -->
+              <div style="margin-bottom: 30px;">
+                <h3 style="color: #2c3e50; margin-top: 0;">Hi ${vendor.name || vendor.businessName || 'there'}! 👋</h3>
+                <p style="color: #495057; font-size: 15px; line-height: 1.6; margin: 0;">
+                  Your listing has been successfully updated. Since you've made changes to your listing, our admin team will review the updates to ensure everything meets our quality standards. This typically takes 24-48 hours.
+                </p>
+              </div>
+      
+              <!-- Pending Review Notice -->
+              <div style="margin-bottom: 25px; padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 16px;">⏳ Pending Admin Review</h4>
+                <p style="margin: 0; color: #856404; font-size: 14px; line-height: 1.6;">
+                  Your updated listing has been saved as a draft and is currently under review. Once approved by our admin team, it will be live again and visible to customers. We'll notify you as soon as it's approved!
+                </p>
+              </div>
+      
+              <!-- Updated Listing Details -->
+              <div style="margin-bottom: 25px;">
+                <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px; margin-top: 0;">
+                  📦 Updated Listing Details
+                </h3>
+                
+                ${updatedListing.images && updatedListing.images.length > 0 ? `
+                <div style="text-align: center; margin: 20px 0;">
+                  <img src="${updatedListing.images.find(img => img.isPrimary)?.url || updatedListing.images[0].url}" 
+                       alt="${updatedListing.title}" 
+                       style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #dee2e6;" />
+                </div>
+                ` : ''}
+                
+                <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                  <tr>
+                    <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Product</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${updatedListing.title}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Brand</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${updatedListing.brand}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Category</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${updatedListing.category}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Condition</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${updatedListing.condition}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Monthly Rent</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #024a47; font-weight: 700; font-size: 18px;">$${updatedListing.pricing.rentPrice}/mo</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Buy Price</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #2c3e50; font-weight: 600; font-size: 16px;">$${updatedListing.pricing.buyPrice}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Status</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6;">
+                      <span style="background-color: #fff3cd; 
+                                   color: #856404; 
+                                   padding: 4px 12px; 
+                                   border-radius: 12px; 
+                                   font-size: 13px; 
+                                   font-weight: 600;">
+                        ⏳ Draft - Pending Review
+                      </span>
+                    </td>
+                  </tr>
+                  ${updatedListing.availability?.location?.city ? `
+                  <tr>
+                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Location</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">
+                      ${updatedListing.availability.location.city}${updatedListing.availability.location.state ? ', ' + updatedListing.availability.location.state : ''}${updatedListing.availability.location.zipCode ? ' ' + updatedListing.availability.location.zipCode : ''}
+                    </td>
+                  </tr>
+                  ` : ''}
+                </table>
+              </div>
+      
+              <!-- What Happens Next -->
+              <div style="margin-bottom: 25px;">
+                <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px;">
+                  🚀 What Happens Next?
+                </h3>
+                
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 15px;">
+                  <div style="margin-bottom: 20px;">
+                    <div style="display: flex; align-items: start; margin-bottom: 15px;">
+                      <span style="background-color: #024a47; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">1</span>
+                      <div>
+                        <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Admin Review (24-48 hours)</h4>
+                        <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
+                          Our team will review your updated listing to ensure it meets our quality and safety standards.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+      
+                  <div style="margin-bottom: 20px;">
+                    <div style="display: flex; align-items: start; margin-bottom: 15px;">
+                      <span style="background-color: #024a47; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">2</span>
+                      <div>
+                        <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Approval Notification</h4>
+                        <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
+                          You'll receive an email confirmation once your listing is approved and live again.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+      
+                  <div>
+                    <div style="display: flex; align-items: start;">
+                      <span style="background-color: #024a47; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">3</span>
+                      <div>
+                        <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Back to Earning</h4>
+                        <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
+                          Once approved, your updated listing will be visible to customers and ready to receive rental requests.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+      
+              <!-- Review Timeline -->
+              <div style="margin-bottom: 25px; padding: 20px; background-color: #e7f3f2; border-left: 4px solid #024a47; border-radius: 4px;">
+                <h4 style="margin: 0 0 10px 0; color: #024a47; font-size: 16px;">⏰ Expected Review Time</h4>
+                <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                  Most listings are reviewed within <strong>24-48 hours</strong>. During peak times, it may take slightly longer. We'll prioritize getting your listing back online as quickly as possible.
+                </p>
+              </div>
+      
+              <!-- Call to Action Button -->
+              <div style="text-align: center; margin-top: 30px;">
+                <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/vendordashboard" 
+                   style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                  View Dashboard
+                </a>
+              </div>
+      
+              <!-- Tips Section -->
+              <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+                <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">💡 While You Wait</h4>
+                <ul style="margin: 10px 0; padding-left: 20px; color: #495057; font-size: 14px; line-height: 1.8;">
+                  <li>Review your other active listings and make sure they're up to date</li>
+                  <li>Respond to any pending rental requests to maintain a good response rate</li>
+                  <li>Check your notification settings to ensure you don't miss the approval</li>
+                  <li>Prepare your item for upcoming rentals if you have any scheduled</li>
+                </ul>
+              </div>
+      
+              <!-- Customer Support -->
+              <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+                <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Help?</h4>
+                <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                  If you have questions about the review process or need to make additional changes, our support team is here to help.
+                </p>
+              </div>
+      
+              <!-- Listing ID -->
+              <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px; text-align: center;">
+                <p style="margin: 0; color: #6c757d; font-size: 12px;">
+                  Listing ID: <strong>#${updatedListing._id}</strong> • Account: ${vendor.email}
+                </p>
+              </div>
+            </div>
+      
+            <!-- Footer -->
+            <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+              <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+                Thank you for keeping your listings updated!
+              </p>
+              <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+                © 2025 RentSimple. All rights reserved.
+              </p>
+            </div>
+          </div>
+        `
+      };
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: 'rentsimple159@gmail.com', 
+            pass: 'upqbbmeobtztqxyg' 
+        }
+      });
+      
+      const info = await transporter.sendMail(mailOptions);
       res.status(200).json({
         success: true,
         message: 'Listing updated successfully',

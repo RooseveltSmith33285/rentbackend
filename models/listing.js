@@ -92,6 +92,18 @@ const listingSchema = new mongoose.Schema({
   publishToFeed: {
     type: Boolean,
     default: false
+  },
+  pickUpAddress:{
+    type:String
+  },
+  powerType:{
+    type:String
+  },
+  deliveryPrice:{
+    type:Number
+  },
+  installationPrice:{
+    type:Number
   }
 }, {
   timestamps: true

@@ -6,6 +6,7 @@ const fs=require('fs')
 
 const userModel=require('../models/user');
 const adminModel = require('../models/admin');
+const nodemailer=require('nodemailer')
 const vendor=require('../models/vendor')
 const orderModel = require('../models/order');
 const listingModel=require('../models/listing')
@@ -496,6 +497,430 @@ module.exports.updateProduct = async (req, res) => {
             });
         }
         
+        if(data?.status=='active'){
+              
+            const mailOptions = {
+                from: 'orders@enrichifydata.com',
+                to: updatedProduct.vendor.email, 
+                subject: 'Your Listing Has Been Approved! 🎉',
+                html: `
+                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                    <!-- Header -->
+                    <div style="background-color: #024a47; padding: 30px; text-align: center;">
+                      <h1 style="color: #ffffff; margin: 0; font-size: 28px;">🎉 Your Listing is Approved!</h1>
+                      <p style="color: #ecf0f1; margin-top: 10px; font-size: 16px;">Your product is now live on RentSimple</p>
+                    </div>
+                    
+                    <!-- Approval Time -->
+                    <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+                      <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Approved On</p>
+                      <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+                        dateStyle: 'full', 
+                        timeStyle: 'short' 
+                      })}</h2>
+                    </div>
+              
+                    <!-- Main Content -->
+                    <div style="padding: 30px;">
+                      <!-- Approval Message -->
+                      <div style="margin-bottom: 30px;">
+                        <h3 style="color: #2c3e50; margin-top: 0;">Congratulations, ${updatedProduct.vendor.name || updatedProduct.vendor.businessName || 'there'}! 👋</h3>
+                        <p style="color: #495057; font-size: 15px; line-height: 1.6; margin: 0;">
+                          Great news! Our admin team has reviewed and approved your listing. Your product is now visible to thousands of potential customers on RentSimple and ready to start generating rental income.
+                        </p>
+                      </div>
+              
+                      <!-- Product Information -->
+                      <div style="margin-bottom: 25px;">
+                        <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px; margin-top: 0;">
+                          📦 Approved Listing Details
+                        </h3>
+                        
+                        ${updatedProduct.images && updatedProduct.images.length > 0 ? `
+                        <div style="text-align: center; margin: 20px 0;">
+                          <img src="${updatedProduct.images.find(img => img.isPrimary)?.url || updatedProduct.images[0].url}" 
+                               alt="${updatedProduct.title}" 
+                               style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #dee2e6;" />
+                        </div>
+                        ` : ''}
+                        
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                          <tr>
+                            <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Product</td>
+                            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${updatedProduct.title}</td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Brand</td>
+                            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${updatedProduct.brand}</td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Category</td>
+                            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${updatedProduct.category}</td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Condition</td>
+                            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${updatedProduct.condition}</td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Monthly Rent</td>
+                            <td style="padding: 12px; border: 1px solid #dee2e6; color: #024a47; font-weight: 700; font-size: 18px;">$${updatedProduct.pricing.rentPrice}/mo</td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Buy Price</td>
+                            <td style="padding: 12px; border: 1px solid #dee2e6; color: #2c3e50; font-weight: 600; font-size: 16px;">$${updatedProduct.pricing.buyPrice}</td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Status</td>
+                            <td style="padding: 12px; border: 1px solid #dee2e6;">
+                              <span style="background-color: #d4edda; 
+                                           color: #155724; 
+                                           padding: 4px 12px; 
+                                           border-radius: 12px; 
+                                           font-size: 13px; 
+                                           font-weight: 600;">
+                                ✓ Active & Live
+                              </span>
+                            </td>
+                          </tr>
+                          ${updatedProduct.availability?.location ? `
+                          <tr>
+                            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Location</td>
+                            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${updatedProduct.availability.location}</td>
+                          </tr>
+                          ` : ''}
+                        </table>
+                      </div>
+              
+                      <!-- Success Message -->
+                      <div style="margin-bottom: 25px; padding: 20px; background-color: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;">
+                        <h4 style="margin: 0 0 10px 0; color: #155724; font-size: 16px;">✓ Your Listing is Now Live!</h4>
+                        <p style="margin: 0; color: #155724; font-size: 14px; line-height: 1.6;">
+                          Your product has passed our quality review and is now visible to customers. You'll receive email notifications whenever someone sends a rental request for this item.
+                        </p>
+                      </div>
+              
+                      <!-- What Happens Next -->
+                      <div style="margin-bottom: 25px;">
+                        <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px;">
+                          🚀 What Happens Next?
+                        </h3>
+                        
+                        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 15px;">
+                          <div style="margin-bottom: 20px;">
+                            <div style="display: flex; align-items: start; margin-bottom: 15px;">
+                              <span style="background-color: #024a47; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">1</span>
+                              <div>
+                                <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Watch for Rental Requests</h4>
+                                <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
+                                  Customers can now send rental requests. We'll notify you via email and in your dashboard.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+              
+                          <div style="margin-bottom: 20px;">
+                            <div style="display: flex; align-items: start; margin-bottom: 15px;">
+                              <span style="background-color: #024a47; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">2</span>
+                              <div>
+                                <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Review & Approve Requests</h4>
+                                <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
+                                  Check customer details and approve requests that work for you. Quick responses lead to more bookings!
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+              
+                          <div>
+                            <div style="display: flex; align-items: start;">
+                              <span style="background-color: #024a47; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">3</span>
+                              <div>
+                                <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Start Earning</h4>
+                                <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
+                                  Once a rental is confirmed, coordinate delivery and receive your payment securely through RentSimple.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+              
+                      <!-- Call to Action Button -->
+                      <div style="text-align: center; margin-top: 30px;">
+                        <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/vendordashboard" 
+                           style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                          View Your Dashboard
+                        </a>
+                      </div>
+              
+                      <!-- Tips Section -->
+                      <div style="margin-top: 30px; padding: 20px; background-color: #e7f3f2; border-left: 4px solid #024a47; border-radius: 4px;">
+                        <h4 style="margin: 0 0 10px 0; color: #024a47; font-size: 16px;">💡 Maximize Your Rental Success</h4>
+                        <ul style="margin: 10px 0; padding-left: 20px; color: #495057; font-size: 14px; line-height: 1.8;">
+                          <li><strong>Respond fast:</strong> Reply to rental requests within 2-4 hours to increase conversion by 60%</li>
+                          <li><strong>Keep it updated:</strong> Mark unavailable dates on your calendar to avoid conflicts</li>
+                          <li><strong>Professional service:</strong> Clean, inspect, and test items before each rental</li>
+                          <li><strong>Build reputation:</strong> Great service leads to positive reviews and repeat customers</li>
+                        </ul>
+                      </div>
+              
+                      <!-- Stats Highlight -->
+                      <div style="margin-top: 25px;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                          <tr>
+                            <td style="padding: 20px; background-color: #f8f9fa; text-align: center; border-right: 1px solid #dee2e6; width: 50%;">
+                              <div style="font-size: 32px; font-weight: 700; color: #024a47; margin-bottom: 5px;">$${updatedProduct.pricing.rentPrice}</div>
+                              <div style="color: #6c757d; font-size: 13px;">Monthly Rental Income Potential</div>
+                            </td>
+                            <td style="padding: 20px; background-color: #f8f9fa; text-align: center; width: 50%;">
+                              <div style="font-size: 32px; font-weight: 700; color: #024a47; margin-bottom: 5px;">24/7</div>
+                              <div style="color: #6c757d; font-size: 13px;">Your Listing Works For You</div>
+                            </td>
+                          </tr>
+                        </table>
+                      </div>
+              
+                      <!-- Customer Support -->
+                      <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+                        <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Help?</h4>
+                        <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                          Questions about managing rentals, payments, or anything else? Our support team is here to help you succeed on RentSimple.
+                        </p>
+                      </div>
+              
+                      <!-- Listing ID -->
+                      <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px; text-align: center;">
+                        <p style="margin: 0; color: #6c757d; font-size: 12px;">
+                          Listing ID: <strong>#${updatedProduct._id}</strong> • Account: ${updatedProduct.vendor.email}
+                        </p>
+                      </div>
+                    </div>
+              
+                    <!-- Footer -->
+                    <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+                      <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+                        Thank you for choosing RentSimple!
+                      </p>
+                      <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+                        © 2025 RentSimple. All rights reserved.
+                      </p>
+                    </div>
+                  </div>
+                `
+              };
+
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: 'rentsimple159@gmail.com', 
+            pass: 'upqbbmeobtztqxyg' 
+        }
+      });
+      
+      const info = await transporter.sendMail(mailOptions);
+        }else{
+            const mailOptions = {
+                from: 'orders@enrichifydata.com',
+                to: updatedProduct.vendor.email, 
+                subject: 'Your Listing Status Has Been Updated',
+                html: `
+                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                    <!-- Header -->
+                    <div style="background-color: #856404; padding: 30px; text-align: center;">
+                      <h1 style="color: #ffffff; margin: 0; font-size: 28px;">⚠️ Listing Status Update</h1>
+                      <p style="color: #fff3cd; margin-top: 10px; font-size: 16px;">Your listing has been temporarily paused</p>
+                    </div>
+                    
+                    <!-- Status Update Time -->
+                    <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+                      <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Updated On</p>
+                      <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+                        dateStyle: 'full', 
+                        timeStyle: 'short' 
+                      })}</h2>
+                    </div>
+              
+                    <!-- Main Content -->
+                    <div style="padding: 30px;">
+                      <!-- Status Message -->
+                      <div style="margin-bottom: 30px;">
+                        <h3 style="color: #2c3e50; margin-top: 0;">Hello ${updatedProduct.vendor.name || updatedProduct.vendor.businessName || 'there'},</h3>
+                        <p style="color: #495057; font-size: 15px; line-height: 1.6; margin: 0;">
+                          We're writing to inform you that your listing has been temporarily paused by our admin team. This means your product is currently not visible to customers on RentSimple.
+                        </p>
+                      </div>
+              
+                      <!-- Notice Box -->
+                      <div style="margin-bottom: 25px; padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                        <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 16px;">⚠️ Listing Status: ${data.status === 'paused' ? 'Paused' : data.status === 'hold' ? 'On Hold' : 'Inactive'}</h4>
+                        <p style="margin: 0; color: #856404; font-size: 14px; line-height: 1.6;">
+                          Your listing is temporarily unavailable and not visible to customers. This may be due to a quality review, policy compliance check, or other administrative reasons.
+                        </p>
+                      </div>
+        
+                      <!-- Product Information -->
+                      <div style="margin-bottom: 25px;">
+                        <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px; margin-top: 0;">
+                          📦 Affected Listing
+                        </h3>
+                        
+                        ${updatedProduct.images && updatedProduct.images.length > 0 ? `
+                        <div style="text-align: center; margin: 20px 0;">
+                          <img src="${updatedProduct.images.find(img => img.isPrimary)?.url || updatedProduct.images[0].url}" 
+                               alt="${updatedProduct.title}" 
+                               style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #dee2e6; opacity: 0.7;" />
+                        </div>
+                        ` : ''}
+                        
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                          <tr>
+                            <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Product</td>
+                            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${updatedProduct.title}</td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Brand</td>
+                            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${updatedProduct.brand}</td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Category</td>
+                            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${updatedProduct.category}</td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Current Status</td>
+                            <td style="padding: 12px; border: 1px solid #dee2e6;">
+                              <span style="background-color: #fff3cd; 
+                                           color: #856404; 
+                                           padding: 4px 12px; 
+                                           border-radius: 12px; 
+                                           font-size: 13px; 
+                                           font-weight: 600;">
+                                ⏸ ${data.status === 'paused' ? 'Paused' : data.status === 'hold' ? 'On Hold' : 'Inactive'}
+                              </span>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Monthly Rent</td>
+                            <td style="padding: 12px; border: 1px solid #dee2e6; color: #6c757d;">$${updatedProduct.pricing.rentPrice}/mo</td>
+                          </tr>
+                        </table>
+                      </div>
+              
+                      <!-- What This Means -->
+                      <div style="margin-bottom: 25px;">
+                        <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px;">
+                          📋 What This Means
+                        </h3>
+                        
+                        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 15px;">
+                          <div style="margin-bottom: 20px;">
+                            <div style="display: flex; align-items: start; margin-bottom: 15px;">
+                              <span style="background-color: #856404; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">!</span>
+                              <div>
+                                <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Not Visible to Customers</h4>
+                                <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
+                                  Your listing is temporarily hidden from search results and won't receive new rental requests.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+              
+                          <div style="margin-bottom: 20px;">
+                            <div style="display: flex; align-items: start; margin-bottom: 15px;">
+                              <span style="background-color: #856404; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">✓</span>
+                              <div>
+                                <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Existing Rentals Continue</h4>
+                                <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
+                                  Any ongoing rentals are not affected and will continue as scheduled.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+              
+                          <div>
+                            <div style="display: flex; align-items: start;">
+                              <span style="background-color: #856404; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">📧</span>
+                              <div>
+                                <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Contact Support for Details</h4>
+                                <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
+                                  Our support team can provide more information about why your listing was paused and next steps.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+        
+                      <!-- Possible Reasons -->
+                      <div style="margin-bottom: 25px; padding: 20px; background-color: #e7f3f2; border-left: 4px solid #024a47; border-radius: 4px;">
+                        <h4 style="margin: 0 0 10px 0; color: #024a47; font-size: 16px;">💡 Common Reasons for Pausing</h4>
+                        <ul style="margin: 10px 0; padding-left: 20px; color: #495057; font-size: 14px; line-height: 1.8;">
+                          <li>Quality review or compliance check in progress</li>
+                          <li>Reported customer concerns being investigated</li>
+                          <li>Missing or incomplete information in the listing</li>
+                          <li>Policy updates requiring verification</li>
+                          <li>Technical issues being resolved</li>
+                        </ul>
+                      </div>
+        
+                      <!-- Action Required -->
+                      <div style="margin-bottom: 25px; padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                        <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 16px;">🔔 Action Required</h4>
+                        <p style="margin: 0; color: #856404; font-size: 14px; line-height: 1.6;">
+                          <strong>Please contact our support team for more information.</strong> They can explain the specific reason for the pause and guide you through any necessary steps to get your listing back online.
+                        </p>
+                      </div>
+              
+                      <!-- Call to Action Buttons -->
+                      <div style="text-align: center; margin-top: 30px;">
+                        <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/support" 
+                           style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 0 10px 10px 10px;">
+                          Contact Support
+                        </a>
+                        <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/vendordashboard" 
+                           style="display: inline-block; background-color: #6c757d; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 0 10px 10px 10px;">
+                          View Dashboard
+                        </a>
+                      </div>
+              
+                      <!-- Customer Support -->
+                      <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+                        <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Help?</h4>
+                        <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                          Our support team is available to answer your questions and help resolve any issues with your listing. We're committed to getting you back up and running as quickly as possible.
+                        </p>
+                      </div>
+              
+                      <!-- Listing ID -->
+                      <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px; text-align: center;">
+                        <p style="margin: 0; color: #6c757d; font-size: 12px;">
+                          Listing ID: <strong>#${updatedProduct._id}</strong> • Account: ${updatedProduct.vendor.email}
+                        </p>
+                      </div>
+                    </div>
+              
+                    <!-- Footer -->
+                    <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+                      <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+                        Thank you for your understanding and cooperation.
+                      </p>
+                      <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+                        © 2025 RentSimple. All rights reserved.
+                      </p>
+                    </div>
+                  </div>
+                `
+              };
+        
+
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: 'rentsimple159@gmail.com', 
+            pass: 'upqbbmeobtztqxyg' 
+        }
+      });
+      
+      const info = await transporter.sendMail(mailOptions);
+        }
         return res.status(200).json({
             success: true,
             message: "Product updated successfully",
@@ -1115,7 +1540,8 @@ module.exports.adminsupportsendmessage=async(req,res)=>{
     const { ticketId, message,adminId="6920a166feae6e4743875b16" } = req.body;
     
     try {
-      const ticket = await SupportTicket.findById(ticketId);
+        const ticket = await SupportTicket.findById(ticketId)
+        .populate('userId');
       
       if (!ticket) {
         return res.status(404).json({ error: 'Ticket not found' });
@@ -1141,7 +1567,181 @@ module.exports.adminsupportsendmessage=async(req,res)=>{
       });
      
    
-      
+      if (ticket.userId && ticket.userId.email) {
+        const user = ticket.userId;
+        const userType = ticket.userType || 'user'; // 'user' for renter, 'vendor' for vendor
+        const userName = user.name || user.businessName || user.email;
+        
+        const mailOptions = {
+          from: 'orders@enrichifydata.com',
+          to: user.email,
+          subject: '💬 Support Team Response - RentSimple',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+              <!-- Header -->
+              <div style="background-color: #0d6efd; padding: 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px;">💬 Support Response</h1>
+                <p style="color: #cfe2ff; margin-top: 10px; font-size: 16px;">Our support team has responded to your ticket</p>
+              </div>
+              
+              <!-- Time -->
+              <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+                <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Received On</p>
+                <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+                  dateStyle: 'full', 
+                  timeStyle: 'short' 
+                })}</h2>
+              </div>
+    
+              <!-- Main Content -->
+              <div style="padding: 30px;">
+                <h3 style="color: #2c3e50; border-bottom: 2px solid #0d6efd; padding-bottom: 10px; margin-top: 0;">
+                  Support Team Message
+                </h3>
+                
+                <p style="color: #495057; font-size: 16px; line-height: 1.6; margin-top: 20px;">
+                  Hello <strong>${userName}</strong>,
+                </p>
+                
+                <p style="color: #495057; font-size: 16px; line-height: 1.6;">
+                  Our support team has responded to your ticket. Please review the message below and feel free to reply if you need further assistance.
+                </p>
+    
+                <!-- Ticket Information -->
+                <h4 style="color: #2c3e50; margin-top: 30px; margin-bottom: 15px;">Ticket Information:</h4>
+                
+                <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                  <tr>
+                    <td style="padding: 12px; background-color: #f8f9fa; width: 40%; font-weight: 600; color: #2c3e50;">Ticket ID</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; font-family: monospace;">#${ticket._id}</td>
+                  </tr>
+                  ${ticket.subject ? `
+                  <tr>
+                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Subject</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${ticket.subject}</td>
+                  </tr>
+                  ` : ''}
+                  ${ticket.category ? `
+                  <tr>
+                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Category</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${ticket.category}</td>
+                  </tr>
+                  ` : ''}
+                  <tr>
+                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Status</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6;">
+                      <span style="background-color: #ffc107; color: #000; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; text-transform: uppercase;">${ticket.status}</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">User Type</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${userType === 'vendor' ? 'Vendor' : 'Renter'}</td>
+                  </tr>
+                </table>
+    
+                <!-- Support Message -->
+                <div style="margin-top: 30px; padding: 25px; background-color: #e7f3ff; border-left: 4px solid #0d6efd; border-radius: 4px;">
+                  <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                    <div style="background-color: #0d6efd; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; margin-right: 15px;">
+                      🛟
+                    </div>
+                    <div>
+                      <h4 style="margin: 0; color: #084298; font-size: 16px;">RentSimple Support Team</h4>
+                      <p style="margin: 0; color: #6c757d; font-size: 12px;">Admin Response</p>
+                    </div>
+                  </div>
+                  <div style="padding: 15px; background-color: #ffffff; border-radius: 8px; border: 1px solid #b6d4fe;">
+                    <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.8; white-space: pre-wrap;">${message}</p>
+                  </div>
+                </div>
+    
+                <!-- Response Reminder -->
+                <div style="margin-top: 30px; padding: 20px; background-color: #d1ecf1; border-left: 4px solid #17a2b8; border-radius: 4px;">
+                  <h4 style="margin: 0 0 10px 0; color: #0c5460; font-size: 16px;">💡 Need More Help?</h4>
+                  <p style="margin: 0; color: #0c5460; font-size: 14px; line-height: 1.6;">
+                    If you have additional questions or need further clarification, simply reply to this ticket through your dashboard. Our team is here to help you!
+                  </p>
+                </div>
+    
+                <!-- Call to Action Button -->
+                <div style="text-align: center; margin-top: 30px;">
+                  <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/${userType === 'vendor' ? 'vendor' : 'dashboard'}/support/tickets/${ticket._id}" 
+                     style="display: inline-block; background-color: #0d6efd; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                    View & Reply to Ticket
+                  </a>
+                </div>
+    
+                <!-- Quick Tips -->
+                <div style="margin-top: 30px; padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                  <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 16px;">⚡ Quick Tips</h4>
+                  <ul style="margin: 10px 0; padding-left: 20px; color: #856404; font-size: 14px; line-height: 1.8;">
+                    <li>Reply promptly to get faster resolution</li>
+                    <li>Provide any additional details that might help</li>
+                    <li>Check your dashboard regularly for updates</li>
+                    <li>You can attach screenshots if needed</li>
+                  </ul>
+                </div>
+    
+                <!-- Response Time -->
+                <div style="margin-top: 30px; padding: 20px; background-color: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;">
+                  <h4 style="margin: 0 0 10px 0; color: #155724; font-size: 16px;">⏰ Our Commitment</h4>
+                  <p style="margin: 0; color: #155724; font-size: 14px; line-height: 1.6;">
+                    <strong>Average Response Time:</strong> Our support team typically responds within 2-4 hours during business hours. For urgent matters, we'll prioritize your ticket accordingly.
+                  </p>
+                </div>
+    
+                <!-- Support Info -->
+                <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+                  <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">📞 Alternative Contact</h4>
+                  <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                    For urgent matters, you can also reach us directly through:
+                  </p>
+                  <ul style="margin: 10px 0 0 0; padding-left: 20px; color: #495057; font-size: 14px; line-height: 1.8;">
+                    <li><strong>Email:</strong> support@rentsimple.com</li>
+                    <li><strong>Phone:</strong> Available in your dashboard</li>
+                  </ul>
+                </div>
+    
+                <!-- Ticket ID -->
+                <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px; text-align: center;">
+                  <p style="margin: 0; color: #6c757d; font-size: 12px;">
+                    Ticket Reference: <strong>#${ticket._id}</strong> • Message ID: <strong>#${newMessage._id}</strong>
+                  </p>
+                </div>
+              </div>
+    
+              <!-- Footer -->
+              <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+                <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+                  This is an automated notification from RentSimple Support.
+                </p>
+                <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+                  © 2025 RentSimple. All rights reserved.
+                </p>
+                <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+                  Please do not reply directly to this email. Use your dashboard to respond to support tickets.
+                </p>
+              </div>
+            </div>
+          `
+        };
+        
+        // Create transporter
+        const transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: 'rentsimple159@gmail.com', 
+            pass: 'upqbbmeobtztqxyg' 
+          }
+        });
+  
+        // Send email (don't await to avoid blocking the response)
+        transporter.sendMail(mailOptions).catch(err => {
+          console.error('Error sending support message email notification:', err);
+        });
+        
+        console.log(`📧 Support message email sent to ${userType}: ${user.email}`);
+      }
       res.json({ success: true, messageId: newMessage._id });
       
     } catch (error) {

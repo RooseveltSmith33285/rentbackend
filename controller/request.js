@@ -4,29 +4,436 @@ const requestModel = require("../models/request");
 const strikeModel = require("../models/strike");
 const userModel=require('../models/user')
 const Vendor=require('../models/vendor')
+const nodemailer=require('nodemailer')
 exports.sendRequestUser=async(req,res)=>{
-    let {listing,vendor,deliveryType,installationType}=req.body;
-    console.log(listing)
-    console.log(vendor)
+  let {listing,vendor,deliveryType,deliveryAddress,installationType}=req.body;
+  console.log(listing)
+  console.log(vendor)
 try{
-await requestModel.create({
-    listing,
-    vendor,
-    user:req.user._id,
-    deliveryType,
-    installationType
-
+const newRequest = await requestModel.create({
+  listing,
+  vendor,
+  user:req.user._id,
+  deliveryType,
+  installationType,
+  deliveryAddress
 })
 
+// Populate the request with listing and user details
+const populatedRequest = await requestModel.findById(newRequest._id)
+  .populate('listing')
+  .populate('user', 'name email phone');
 
+  let vendorFound=await Vendor.findOne({_id:vendor})
+const mailOptions = {
+from: 'orders@enrichifydata.com',
+to: vendorFound.email, 
+subject: '🔔 New Rental Request Received!',
+html: `
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+    <!-- Header -->
+    <div style="background-color: #024a47; padding: 30px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 28px;">🎉 New Rental Request!</h1>
+      <p style="color: #ecf0f1; margin-top: 10px; font-size: 16px;">A customer wants to rent your product</p>
+    </div>
+    
+    <!-- Request Time -->
+    <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+      <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Request Received</p>
+      <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+        dateStyle: 'full', 
+        timeStyle: 'short' 
+      })}</h2>
+    </div>
+
+    <!-- Main Content -->
+    <div style="padding: 30px;">
+      <!-- Greeting Message -->
+      <div style="margin-bottom: 30px;">
+        <h3 style="color: #2c3e50; margin-top: 0;">Great news, ${vendorFound.name || vendorFound.businessName || 'there'}! 👋</h3>
+        <p style="color: #495057; font-size: 15px; line-height: 1.6; margin: 0;">
+          You've received a new rental request for one of your listings! A customer is interested in renting your product. 
+          Review the details below and respond quickly to increase your chances of securing this rental.
+        </p>
+      </div>
+
+      <!-- Action Required Notice -->
+      <div style="margin-bottom: 25px; padding: 20px; background-color: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;">
+        <h4 style="margin: 0 0 10px 0; color: #155724; font-size: 16px;">⚡ Quick Response = More Bookings</h4>
+        <p style="margin: 0; color: #155724; font-size: 14px; line-height: 1.6;">
+          Vendors who respond within 2-4 hours have a 60% higher conversion rate. Don't miss this opportunity!
+        </p>
+      </div>
+
+      <!-- Product Information -->
+      <div style="margin-bottom: 25px;">
+        <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px; margin-top: 0;">
+          📦 Requested Product
+        </h3>
+        
+        ${populatedRequest.listing.images && populatedRequest.listing.images.length > 0 ? `
+        <div style="text-align: center; margin: 20px 0;">
+          <img src="${populatedRequest.listing.images.find(img => img.isPrimary)?.url || populatedRequest.listing.images[0].url}" 
+               alt="${populatedRequest.listing.title}" 
+               style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #dee2e6;" />
+        </div>
+        ` : ''}
+        
+        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Product</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${populatedRequest.listing.title}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Brand</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${populatedRequest.listing.brand}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Category</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${populatedRequest.listing.category}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Monthly Rent</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #024a47; font-weight: 700; font-size: 18px;">$${populatedRequest.listing.pricing.rentPrice}/mo</td>
+          </tr>
+          ${deliveryType ? `
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Delivery Type</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${deliveryType}</td>
+          </tr>
+          ` : ''}
+          ${installationType ? `
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Installation</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${installationType}</td>
+          </tr>
+          ` : ''}
+        </table>
+      </div>
+
+      <!-- Customer Information -->
+      <div style="margin-bottom: 25px;">
+        <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px;">
+          👤 Customer Information
+        </h3>
+        
+        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Name</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${populatedRequest.user.name}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Email</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${populatedRequest.user.email}</td>
+          </tr>
+          ${populatedRequest.user.phone ? `
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Phone</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${populatedRequest.user.phone}</td>
+          </tr>
+          ` : ''}
+        </table>
+      </div>
+
+      <!-- What To Do Next -->
+      <div style="margin-bottom: 25px;">
+        <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px;">
+          🚀 What To Do Next?
+        </h3>
+        
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 15px;">
+          <div style="margin-bottom: 20px;">
+            <div style="display: flex; align-items: start; margin-bottom: 15px;">
+              <span style="background-color: #024a47; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">1</span>
+              <div>
+                <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Review the Request</h4>
+                <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
+                  Check the customer's profile and rental details to ensure it's a good fit.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 20px;">
+            <div style="display: flex; align-items: start; margin-bottom: 15px;">
+              <span style="background-color: #024a47; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">2</span>
+              <div>
+                <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Approve or Decline</h4>
+                <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
+                  Log in to your dashboard to approve or decline the request. Remember, fast responses lead to more successful rentals!
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div style="display: flex; align-items: start;">
+              <span style="background-color: #024a47; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">3</span>
+              <div>
+                <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Coordinate Details</h4>
+                <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
+                  Once approved, coordinate delivery, installation, and payment details with the customer.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Call to Action Button -->
+      <div style="text-align: center; margin-top: 30px;">
+        <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/vendordashboard/requests" 
+           style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+          Review Request Now
+        </a>
+      </div>
+
+      <!-- Tips Section -->
+      <div style="margin-top: 30px; padding: 20px; background-color: #e7f3f2; border-left: 4px solid #024a47; border-radius: 4px;">
+        <h4 style="margin: 0 0 10px 0; color: #024a47; font-size: 16px;">💡 Tips for a Successful Rental</h4>
+        <ul style="margin: 10px 0; padding-left: 20px; color: #495057; font-size: 14px; line-height: 1.8;">
+          <li><strong>Respond quickly:</strong> Customers are more likely to proceed when you respond within a few hours</li>
+          <li><strong>Communicate clearly:</strong> Confirm delivery/pickup details and any special requirements</li>
+          <li><strong>Verify availability:</strong> Make sure the item is ready and available for the requested dates</li>
+          <li><strong>Be professional:</strong> Great service leads to positive reviews and repeat customers</li>
+        </ul>
+      </div>
+
+      <!-- Stats Highlight -->
+      <div style="margin-top: 25px;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 20px; background-color: #f8f9fa; text-align: center; border-right: 1px solid #dee2e6; width: 50%;">
+              <div style="font-size: 32px; font-weight: 700; color: #024a47; margin-bottom: 5px;">$${populatedRequest.listing.pricing.rentPrice}</div>
+              <div style="color: #6c757d; font-size: 13px;">Potential Monthly Earnings</div>
+            </td>
+            <td style="padding: 20px; background-color: #f8f9fa; text-align: center; width: 50%;">
+              <div style="font-size: 32px; font-weight: 700; color: #024a47; margin-bottom: 5px;">2-4h</div>
+              <div style="color: #6c757d; font-size: 13px;">Ideal Response Time</div>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Customer Support -->
+      <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+        <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Help?</h4>
+        <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+          Questions about handling rental requests or managing the rental process? Our support team is here to help you succeed.
+        </p>
+      </div>
+
+      <!-- Request ID -->
+      <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px; text-align: center;">
+        <p style="margin: 0; color: #6c757d; font-size: 12px;">
+          Request ID: <strong>#${populatedRequest._id}</strong> • Account: ${vendor.email}
+        </p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+      <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+        Don't let this opportunity slip away - respond now!
+      </p>
+      <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+        © 2025 RentSimple. All rights reserved.
+      </p>
+    </div>
+  </div>
+`
+};
+const userMailOptions = {
+  from: 'orders@enrichifydata.com',
+  to: populatedRequest.user.email,
+  subject: '✅ Rental Request Sent Successfully - RentSimple',
+  html: `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+      <!-- Header -->
+      <div style="background-color: #28a745; padding: 30px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 28px;">✅ Request Sent!</h1>
+        <p style="color: #e9ecef; margin-top: 10px; font-size: 16px;">Your rental request has been submitted successfully</p>
+      </div>
+      
+      <!-- Time -->
+      <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+        <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Submitted On</p>
+        <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+          dateStyle: 'full', 
+          timeStyle: 'short' 
+        })}</h2>
+      </div>
+
+      <!-- Main Content -->
+      <div style="padding: 30px;">
+        <h3 style="color: #2c3e50; border-bottom: 2px solid #28a745; padding-bottom: 10px; margin-top: 0;">
+          Request Confirmation
+        </h3>
+        
+        <p style="color: #495057; font-size: 16px; line-height: 1.6; margin-top: 20px;">
+          Hello <strong>${populatedRequest.user.name}</strong>,
+        </p>
+        
+        <p style="color: #495057; font-size: 16px; line-height: 1.6;">
+          Great news! Your rental request has been successfully sent to the vendor. They will review your request and respond soon.
+        </p>
+
+        <!-- Success Message -->
+        <div style="margin-top: 25px; padding: 20px; background-color: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;">
+          <h4 style="margin: 0 0 10px 0; color: #155724; font-size: 16px;">✨ What Happens Next?</h4>
+          <p style="margin: 0; color: #155724; font-size: 14px; line-height: 1.6;">
+            The vendor will review your request and typically responds within 24-48 hours. We'll notify you immediately once they accept or respond to your request.
+          </p>
+        </div>
+
+        <!-- Product Information -->
+        ${populatedRequest.listing.images && populatedRequest.listing.images.length > 0 ? `
+        <div style="text-align: center; margin: 25px 0;">
+          <img src="${populatedRequest.listing.images.find(img => img.isPrimary)?.url || populatedRequest.listing.images[0].url}" 
+               alt="${populatedRequest.listing.title}" 
+               style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #dee2e6;" />
+        </div>
+        ` : ''}
+
+        <h4 style="color: #2c3e50; margin-top: 30px; margin-bottom: 15px;">Request Details:</h4>
+        
+        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; width: 40%; font-weight: 600; color: #2c3e50;">Product</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${populatedRequest.listing.title}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Brand</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${populatedRequest.listing.brand}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Category</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${populatedRequest.listing.category}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Monthly Rent</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #28a745; font-weight: 700; font-size: 18px;">$${populatedRequest.listing.pricing.rentPrice}/mo</td>
+          </tr>
+          ${deliveryType ? `
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Delivery Type</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${deliveryType}</td>
+          </tr>
+          ` : ''}
+          ${installationType ? `
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Installation</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${installationType}</td>
+          </tr>
+          ` : ''}
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Vendor</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${vendor.name || vendor.businessName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Status</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6;">
+              <span style="background-color: #ffc107; color: #000; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">PENDING</span>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Timeline -->
+        <div style="margin-top: 30px;">
+          <h4 style="color: #2c3e50; margin-bottom: 20px;">📋 Request Timeline:</h4>
+          
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px;">
+            <div style="margin-bottom: 15px; padding-left: 30px; position: relative;">
+              <span style="position: absolute; left: 0; top: 0; background-color: #28a745; color: white; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px;">✓</span>
+              <div>
+                <h5 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 14px;">Request Submitted</h5>
+                <p style="margin: 0; color: #6c757d; font-size: 13px;">Your request has been sent to the vendor</p>
+              </div>
+            </div>
+            
+            <div style="margin-bottom: 15px; padding-left: 30px; position: relative;">
+              <span style="position: absolute; left: 0; top: 0; background-color: #ffc107; color: white; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px;">2</span>
+              <div>
+                <h5 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 14px;">Vendor Review</h5>
+                <p style="margin: 0; color: #6c757d; font-size: 13px;">Waiting for vendor to review and respond (24-48 hours)</p>
+              </div>
+            </div>
+            
+            <div style="padding-left: 30px; position: relative;">
+              <span style="position: absolute; left: 0; top: 0; background-color: #dee2e6; color: white; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px;">3</span>
+              <div>
+                <h5 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 14px;">Response & Next Steps</h5>
+                <p style="margin: 0; color: #6c757d; font-size: 13px;">Once approved, coordinate delivery and payment details</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tips -->
+        <div style="margin-top: 30px; padding: 20px; background-color: #e7f3ff; border-left: 4px solid #0d6efd; border-radius: 4px;">
+          <h4 style="margin: 0 0 10px 0; color: #0d6efd; font-size: 16px;">💡 While You Wait</h4>
+          <ul style="margin: 10px 0; padding-left: 20px; color: #495057; font-size: 14px; line-height: 1.8;">
+            <li>Keep an eye on your email for vendor responses</li>
+            <li>Check your dashboard for request status updates</li>
+            <li>Have your delivery address ready for confirmation</li>
+            <li>Prepare any questions you may have for the vendor</li>
+          </ul>
+        </div>
+
+        <!-- Call to Action Button -->
+        <div style="text-align: center; margin-top: 30px;">
+          <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/renterdashboard" 
+             style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+            View My Requests
+          </a>
+        </div>
+
+        <!-- Support Info -->
+        <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+          <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Help?</h4>
+          <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+            If you have any questions or concerns about your rental request, our support team is here to help.
+          </p>
+        </div>
+
+        <!-- Request ID -->
+        <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px; text-align: center;">
+          <p style="margin: 0; color: #6c757d; font-size: 12px;">Request ID: <strong>#${populatedRequest._id}</strong></p>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+        <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+          This is an automated confirmation from RentSimple.
+        </p>
+        <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+          © 2025 RentSimple. All rights reserved.
+        </p>
+      </div>
+    </div>
+  `
+};
+
+
+const transporter = nodemailer.createTransport({
+service: 'gmail',
+auth: {
+    user: 'rentsimple159@gmail.com', 
+    pass: 'upqbbmeobtztqxyg' 
+}
+});
+
+const info = await transporter.sendMail(mailOptions);
+await transporter.sendMail(userMailOptions)
 return res.status(200).json({
-    message:"Requst sent to vendor sucessfully"
+  message:"Request sent to vendor successfully"
 })
 }catch(e){
- console.log(e.message)
- return res.status(400).json({
-    error:"Error while sending request"
- })   
+console.log(e.message)
+return res.status(400).json({
+  error:"Error while sending request"
+})   
 }
 }
 
@@ -53,29 +460,387 @@ return res.status(200).json({
     }
 }
 
+module.exports.rejectOffer = async(req, res) => {
+  let {id} = req.params;
+console.log(id)
+  const {rejectionReason}=req.body;
+  try {
+ 
+      const request = await requestModel.findOne({listing: id})
+          .populate('listing')
+          .populate('vendor')
+          .populate('user');
+     
+      if (!request) {
+          return res.status(404).json({
+              error: "Request not found"
+          });
+      }
+      console.log("YUP THIS IS IT")
+      // Update the request status
+      const lastRequest = await requestModel
+      .findOne({ listing: id.toString() })
+      .sort({ _id: -1 }); // get the latest one
+    
+    const updateResult = await requestModel.updateOne(
+      { _id: lastRequest._id },
+      {
+        $set: {
+          status: "rejected",
+          rejectionReason,
+          approvedByVendor: false
+        }
+      }
+    );
+    
+  
+      
+      // Send email to vendor
+      if (request.vendor && request.vendor.email) {
+          const mailOptions = {
+              from: 'orders@enrichifydata.com',
+              to: request.vendor.email,
+              subject: 'Rental Offer Rejected by Customer - RentSimple',
+              html: `
+                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                      <!-- Header -->
+                      <div style="background-color: #dc3545; padding: 30px; text-align: center;">
+                          <h1 style="color: #ffffff; margin: 0; font-size: 28px;">❌ Offer Rejected</h1>
+                          <p style="color: #f8d7da; margin-top: 10px; font-size: 16px;">Customer declined your rental offer</p>
+                      </div>
+                      
+                      <!-- Rejection Time -->
+                      <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+                          <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Rejected On</p>
+                          <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+                              dateStyle: 'full', 
+                              timeStyle: 'short' 
+                          })}</h2>
+                      </div>
 
-module.exports.rejectOffer=async(req,res)=>{
-    let {id}=req.params;
-    try{
-await requestModel.updateOne({listing:id},{
-    $set:{
-        status:'rejected'
-    }
-})
+                      <!-- Main Content -->
+                      <div style="padding: 30px;">
+                          <h3 style="color: #2c3e50; border-bottom: 2px solid #dc3545; padding-bottom: 10px; margin-top: 0;">
+                              Rental Offer Declined
+                          </h3>
+                          
+                          <p style="color: #495057; font-size: 16px; line-height: 1.6; margin-top: 20px;">
+                              Hello <strong>${request.vendor.name || request.vendor.username}</strong>,
+                          </p>
+                          
+                          <p style="color: #495057; font-size: 16px; line-height: 1.6;">
+                              We're writing to inform you that a customer has declined your rental offer. The rental request for your product has been rejected.
+                          </p>
 
-return res.status(200).json({
-    message:"Offer rejected sucessfully"
-})
-    }catch(e){
+                          <!-- Product Information -->
+                          ${request.listing && request.listing.images && request.listing.images.length > 0 ? `
+                          <div style="text-align: center; margin: 20px 0;">
+                              <img src="${request.listing.images.find(img => img.isPrimary)?.url || request.listing.images[0].url}" 
+                                   alt="${request.listing.title}" 
+                                   style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #dee2e6;" />
+                          </div>
+                          ` : ''}
 
-        console.log(e.message)
-        return res.status(400).json({
-            error:"Error occured while trying to reject offer"
-        })
-    }
+                          <h4 style="color: #2c3e50; margin-top: 30px; margin-bottom: 15px;">Rejected Offer Details:</h4>
+                          
+                          <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                              ${request.listing ? `
+                              <tr>
+                                  <td style="padding: 12px; background-color: #f8f9fa; width: 40%; font-weight: 600; color: #2c3e50;">Product</td>
+                                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${request.listing.title}</td>
+                              </tr>
+                              <tr>
+                                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Brand</td>
+                                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${request.listing.brand || 'N/A'}</td>
+                              </tr>
+                              <tr>
+                                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Category</td>
+                                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${request.listing.category || 'N/A'}</td>
+                              </tr>
+                              <tr>
+                                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Monthly Rent</td>
+                                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #dc3545; font-weight: 700; font-size: 18px;">$${request.listing.pricing?.rentPrice || 'N/A'}/mo</td>
+                              </tr>
+                              ` : ''}
+                              ${request.user ? `
+                              <tr>
+                                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Customer</td>
+                                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${request.user.name || request.user.email}</td>
+                              </tr>
+                              ` : ''}
+                              <tr>
+                                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Status</td>
+                                  <td style="padding: 12px; border: 1px solid #dee2e6;">
+                                      <span style="background-color: #dc3545; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">REJECTED</span>
+                                  </td>
+                              </tr>
+                              ${request.deliveryType ? `
+                              <tr>
+                                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Delivery Type</td>
+                                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${request.deliveryType}</td>
+                              </tr>
+                              ` : ''}
+                              ${request.installationType ? `
+                              <tr>
+                                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Installation</td>
+                                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${request.installationType}</td>
+                              </tr>
+                              ` : ''}
+                              ${rejectionReason ? `
+                                <tr>
+                                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Rejection Reason</td>
+                                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #dc3545; font-weight: 600;">${rejectionReason}</td>
+                                </tr>
+                                ` : ''}
+                          </table>
+
+
+                          <!-- What This Means -->
+                          <div style="margin-top: 30px; padding: 20px; background-color: #d1ecf1; border-left: 4px solid #17a2b8; border-radius: 4px;">
+                              <h4 style="margin: 0 0 10px 0; color: #0c5460; font-size: 16px;">💡 What This Means</h4>
+                              <p style="margin: 0; color: #0c5460; font-size: 14px; line-height: 1.6;">
+                                  The customer has decided not to proceed with renting this item. Your product remains available for other customers to rent. No further action is required from you.
+                              </p>
+                          </div>
+
+                          <!-- Keep Going -->
+                          <div style="margin-top: 30px; padding: 20px; background-color: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;">
+                              <h4 style="margin: 0 0 10px 0; color: #155724; font-size: 16px;">📈 Keep Growing</h4>
+                              <ul style="margin: 10px 0; padding-left: 20px; color: #155724; line-height: 1.8;">
+                                  <li>Your listing is still active and visible to customers</li>
+                                  <li>Other customers can still request to rent your item</li>
+                                  <li>Consider reviewing your pricing or listing details</li>
+                                  <li>Keep your listings updated with clear photos and descriptions</li>
+                              </ul>
+                          </div>
+
+                          <!-- Call to Action Button -->
+                          <div style="text-align: center; margin-top: 30px;">
+                              <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/vendor/listings" 
+                                 style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                                  View My Listings
+                              </a>
+                          </div>
+
+                          <!-- Tips Section -->
+                          <div style="margin-top: 30px; padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                              <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 16px;">💡 Tips to Increase Rentals</h4>
+                              <ul style="margin: 10px 0; padding-left: 20px; color: #856404; line-height: 1.8;">
+                                  <li>Ensure your product photos are clear and high-quality</li>
+                                  <li>Write detailed, honest descriptions</li>
+                                  <li>Keep your pricing competitive</li>
+                                  <li>Respond quickly to rental requests</li>
+                                  <li>Maintain excellent customer service</li>
+                              </ul>
+                          </div>
+
+                          <!-- Support Info -->
+                          <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+                              <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Help?</h4>
+                              <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                                  If you have questions about this rejection or need tips on improving your listings, our support team is here to help you succeed.
+                              </p>
+                          </div>
+
+                          <!-- Request ID -->
+                          <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px; text-align: center;">
+                              <p style="margin: 0; color: #6c757d; font-size: 12px;">Request ID: <strong>#${request._id}</strong></p>
+                          </div>
+                      </div>
+
+                      <!-- Footer -->
+                      <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+                          <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+                              This is an automated notification from RentSimple.
+                          </p>
+                          <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+                              © 2025 RentSimple. All rights reserved.
+                          </p>
+                      </div>
+                  </div>
+              `
+          };
+          const userMailOptions = {
+            from: 'orders@enrichifydata.com',
+            to: request.user.email,
+            subject: 'Offer Rejection Confirmed - RentSimple',
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                    <!-- Header -->
+                    <div style="background-color: #6c757d; padding: 30px; text-align: center;">
+                        <h1 style="color: #ffffff; margin: 0; font-size: 28px;">✅ Rejection Confirmed</h1>
+                        <p style="color: #e9ecef; margin-top: 10px; font-size: 16px;">You have declined the rental offer</p>
+                    </div>
+                    
+                    <!-- Time -->
+                    <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+                        <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Rejected On</p>
+                        <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+                            dateStyle: 'full', 
+                            timeStyle: 'short' 
+                        })}</h2>
+                    </div>
+  
+                    <!-- Main Content -->
+                    <div style="padding: 30px;">
+                        <h3 style="color: #2c3e50; border-bottom: 2px solid #6c757d; padding-bottom: 10px; margin-top: 0;">
+                            Offer Rejection Confirmed
+                        </h3>
+                        
+                        <p style="color: #495057; font-size: 16px; line-height: 1.6; margin-top: 20px;">
+                            Hello <strong>${request.user.name}</strong>,
+                        </p>
+                        
+                        <p style="color: #495057; font-size: 16px; line-height: 1.6;">
+                            This confirms that you have successfully declined the rental offer from the vendor. The vendor has been notified of your decision.
+                        </p>
+  
+                        <!-- Confirmation Message -->
+                        <div style="margin-top: 25px; padding: 20px; background-color: #d1ecf1; border-left: 4px solid #17a2b8; border-radius: 4px;">
+                            <h4 style="margin: 0 0 10px 0; color: #0c5460; font-size: 16px;">✓ What We've Done</h4>
+                            <p style="margin: 0; color: #0c5460; font-size: 14px; line-height: 1.6;">
+                                We've notified the vendor of your decision and closed this rental request. No further action is required from you regarding this offer.
+                            </p>
+                        </div>
+  
+                        <!-- Product Information -->
+                        ${request.listing && request.listing.images && request.listing.images.length > 0 ? `
+                        <div style="text-align: center; margin: 25px 0;">
+                            <img src="${request.listing.images.find(img => img.isPrimary)?.url || request.listing.images[0].url}" 
+                                 alt="${request.listing.title}" 
+                                 style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #dee2e6;" />
+                        </div>
+                        ` : ''}
+  
+                        <h4 style="color: #2c3e50; margin-top: 30px; margin-bottom: 15px;">Rejected Offer Details:</h4>
+                        
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                            ${request.listing ? `
+                            <tr>
+                                <td style="padding: 12px; background-color: #f8f9fa; width: 40%; font-weight: 600; color: #2c3e50;">Product</td>
+                                <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${request.listing.title}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Brand</td>
+                                <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${request.listing.brand || 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Category</td>
+                                <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${request.listing.category || 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Monthly Rent</td>
+                                <td style="padding: 12px; border: 1px solid #dee2e6; color: #6c757d; font-weight: 700; font-size: 18px;">$${request.listing.pricing?.rentPrice || 'N/A'}/mo</td>
+                            </tr>
+                            ` : ''}
+                            ${request.vendor ? `
+                            <tr>
+                                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Vendor</td>
+                                <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${request.vendor.name || request.vendor.businessName || 'N/A'}</td>
+                            </tr>
+                            ` : ''}
+                            ${request.deliveryType ? `
+                            <tr>
+                                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Delivery Type</td>
+                                <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${request.deliveryType}</td>
+                            </tr>
+                            ` : ''}
+                            ${request.installationType ? `
+                            <tr>
+                                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Installation</td>
+                                <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${request.installationType}</td>
+                            </tr>
+                            ` : ''}
+                            <tr>
+                                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Status</td>
+                                <td style="padding: 12px; border: 1px solid #dee2e6;">
+                                    <span style="background-color: #6c757d; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">REJECTED</span>
+                                </td>
+                            </tr>
+                        </table>
+  
+                        <!-- Explore Other Options -->
+                        <div style="margin-top: 30px; padding: 20px; background-color: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;">
+                            <h4 style="margin: 0 0 10px 0; color: #155724; font-size: 16px;">🔍 Find What You're Looking For</h4>
+                            <p style="margin: 0; color: #155724; font-size: 14px; line-height: 1.6;">
+                                Not the right fit? Browse thousands of other rental options that might better suit your needs. We have a wide variety of products available from verified vendors.
+                            </p>
+                        </div>
+  
+                        <!-- Call to Action Buttons -->
+                        <div style="text-align: center; margin-top: 30px;">
+                            <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/browse" 
+                               style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 0 10px 10px 0;">
+                                Browse Products
+                            </a>
+                            <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/renterdashboard" 
+                               style="display: inline-block; background-color: #6c757d; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 0 0 10px 10px;">
+                                View My Requests
+                            </a>
+                        </div>
+  
+                        <!-- Why Choose RentSimple -->
+                        <div style="margin-top: 30px; padding: 20px; background-color: #e7f3f2; border-left: 4px solid #024a47; border-radius: 4px;">
+                            <h4 style="margin: 0 0 10px 0; color: #024a47; font-size: 16px;">💡 Why Keep Looking on RentSimple?</h4>
+                            <ul style="margin: 10px 0; padding-left: 20px; color: #495057; font-size: 14px; line-height: 1.8;">
+                                <li><strong>Wide Selection:</strong> Thousands of products across multiple categories</li>
+                                <li><strong>Verified Vendors:</strong> All vendors are vetted for quality and reliability</li>
+                                <li><strong>Flexible Terms:</strong> Find rental options that fit your schedule and budget</li>
+                                <li><strong>Secure Transactions:</strong> Safe and protected rental process</li>
+                            </ul>
+                        </div>
+  
+                        <!-- Support Info -->
+                        <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+                            <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Help?</h4>
+                            <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                                If you have questions or need assistance finding the right rental product, our support team is here to help you.
+                            </p>
+                        </div>
+  
+                        <!-- Request ID -->
+                        <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px; text-align: center;">
+                            <p style="margin: 0; color: #6c757d; font-size: 12px;">Request ID: <strong>#${request._id}</strong></p>
+                        </div>
+                    </div>
+  
+                    <!-- Footer -->
+                    <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+                        <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+                            This is an automated confirmation from RentSimple.
+                        </p>
+                        <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+                            © 2025 RentSimple. All rights reserved.
+                        </p>
+                    </div>
+                </div>
+            `
+        };
+
+          const transporter = nodemailer.createTransport({
+              service: 'gmail',
+              auth: {
+                  user: 'rentsimple159@gmail.com', 
+                  pass: 'upqbbmeobtztqxyg' 
+              }
+          });
+
+          await transporter.sendMail(mailOptions);
+          await transporter.sendMail(userMailOptions)
+          console.log('📧 Offer rejection email sent to vendor:', request.vendor.email);
+      }
+
+      return res.status(200).json({
+          message: "Offer rejected successfully"
+      });
+      
+  } catch(e) {
+      console.log(e.message);
+      return res.status(400).json({
+          error: "Error occurred while trying to reject offer"
+      });
+  }
 }
-
-
 
 
 module.exports.rejectRequestOffer=async(req,res)=>{
@@ -399,6 +1164,335 @@ module.exports.approveOfferByUser = async(req, res) => {
       }
     });
     
+    const userMailOptions = {
+      from: 'orders@enrichifydata.com',
+      to: request.user.email,
+      subject: 'Your Rental Request Has Been Approved',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+          <!-- Header -->
+          <div style="background-color: #024a47; padding: 30px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 28px;">🎉 Rental Request Approved!</h1>
+            <p style="color: #ecf0f1; margin-top: 10px; font-size: 16px;">Your vendor has confirmed availability</p>
+          </div>
+          
+          <!-- Approval Time -->
+          <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+            <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Approved On</p>
+            <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+              dateStyle: 'full', 
+              timeStyle: 'short' 
+            })}</h2>
+          </div>
+    
+          <!-- Main Content -->
+          <div style="padding: 30px;">
+            <!-- Welcome Message -->
+            <div style="margin-bottom: 30px;">
+              <h3 style="color: #2c3e50; margin-top: 0;">Hi ${request.user.name || 'there'}! 👋</h3>
+              <p style="color: #495057; font-size: 15px; line-height: 1.6; margin: 0;">
+                Great news — your rental request has been approved. Your vendor has officially confirmed availability, 
+                and your rental is now scheduled to move forward.
+              </p>
+            </div>
+    
+            <!-- Rental Details Card -->
+            <div style="background-color: #e7f3f2; padding: 20px; border-radius: 8px; margin-bottom: 25px; border-left: 4px solid #024a47;">
+              <h4 style="margin: 0 0 15px 0; color: #024a47; font-size: 18px;">📦 Rental Details</h4>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 8px 0; color: #6c757d; font-size: 14px;">Item:</td>
+                  <td style="padding: 8px 0; color: #2c3e50; font-weight: 600; font-size: 14px; text-align: right;">${request.listing.title}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #6c757d; font-size: 14px;">Brand:</td>
+                  <td style="padding: 8px 0; color: #2c3e50; font-weight: 600; font-size: 14px; text-align: right;">${request.listing.brand}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #6c757d; font-size: 14px;">Category:</td>
+                  <td style="padding: 8px 0; color: #2c3e50; font-weight: 600; font-size: 14px; text-align: right;">${request.listing.category.charAt(0).toUpperCase() + request.listing.category.slice(1)}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #6c757d; font-size: 14px;">Monthly Rent:</td>
+                  <td style="padding: 8px 0; color: #024a47; font-weight: 700; font-size: 16px; text-align: right;">$${request.listing.pricing.rentPrice}/month</td>
+                </tr>
+                ${request.deliveryType ? `
+                <tr>
+                  <td style="padding: 8px 0; color: #6c757d; font-size: 14px;">Delivery Type:</td>
+                  <td style="padding: 8px 0; color: #2c3e50; font-weight: 600; font-size: 14px; text-align: right;">${request.deliveryType}</td>
+                </tr>
+                ` : ''}
+                ${request.installationType ? `
+                <tr>
+                  <td style="padding: 8px 0; color: #6c757d; font-size: 14px;">Installation:</td>
+                  <td style="padding: 8px 0; color: #2c3e50; font-weight: 600; font-size: 14px; text-align: right;">${request.installationType}</td>
+                </tr>
+                ` : ''}
+              </table>
+            </div>
+    
+            <!-- Delivery Address -->
+            ${request.deliveryAddress ? `
+            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+              <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">📍 Delivery Address</h4>
+              <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                ${request.deliveryAddress.street || ''}<br>
+                ${request.deliveryAddress.city || ''}, ${request.deliveryAddress.state || ''} ${request.deliveryAddress.zipCode || ''}<br>
+                ${request.deliveryAddress.country || 'USA'}
+              </p>
+            </div>
+            ` : ''}
+    
+            <!-- What Happens Next -->
+            <div style="margin-bottom: 25px;">
+              <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px; margin-top: 0;">
+                What Happens Next
+              </h3>
+              
+              <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 15px;">
+                <div style="display: flex; align-items: start; margin-bottom: 15px;">
+                  <span style="color: #024a47; margin-right: 10px; font-size: 18px; font-weight: bold;">•</span>
+                  <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                    Your payment method will be prepared for processing based on the rental terms
+                  </p>
+                </div>
+                
+                <div style="display: flex; align-items: start; margin-bottom: 15px;">
+                  <span style="color: #024a47; margin-right: 10px; font-size: 18px; font-weight: bold;">•</span>
+                  <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                    You can review the pickup/delivery details inside your dashboard
+                  </p>
+                </div>
+                
+                <div style="display: flex; align-items: start; margin-bottom: 15px;">
+                  <span style="color: #024a47; margin-right: 10px; font-size: 18px; font-weight: bold;">•</span>
+                  <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                    Messaging with your vendor is now unlocked for coordination
+                  </p>
+                </div>
+                
+                <div style="display: flex; align-items: start;">
+                  <span style="color: #024a47; margin-right: 10px; font-size: 18px; font-weight: bold;">•</span>
+                  <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                    Any updates or changes will trigger real-time notifications
+                  </p>
+                </div>
+              </div>
+            </div>
+    
+            <!-- Call to Action Button -->
+            <div style="text-align: center; margin-top: 30px;">
+              <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/dashboard" 
+                 style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                View All Details in Dashboard
+              </a>
+            </div>
+    
+            <!-- Help Section -->
+            <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+              <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Help?</h4>
+              <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                If you have any questions or need to make changes to your rental, you can message your vendor 
+                directly through the dashboard or contact our support team.
+              </p>
+            </div>
+    
+            <!-- Request Reference -->
+            <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px;">
+              <p style="margin: 0; color: #6c757d; font-size: 12px; text-align: center;">
+                Request ID: <strong>#${request._id.toString().slice(-8).toUpperCase()}</strong>
+              </p>
+            </div>
+          </div>
+    
+          <!-- Footer -->
+          <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+            <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+              Thanks for choosing RentSimple. We're committed to delivering a seamless, transparent rental experience at every step.
+            </p>
+            <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+              © 2025 RentSimple. All rights reserved.
+            </p>
+          </div>
+        </div>
+      `
+    };
+
+
+    const vendorMailOptions = {
+      from: 'orders@enrichifydata.com',
+      to: request.listing.vendor.email,
+      subject: 'Rental Successfully Approved',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+          <!-- Header -->
+          <div style="background-color: #024a47; padding: 30px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 28px;">✅ Rental Successfully Approved</h1>
+            <p style="color: #ecf0f1; margin-top: 10px; font-size: 16px;">Your confirmation has been submitted</p>
+          </div>
+          
+          <!-- Approval Time -->
+          <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+            <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Confirmed On</p>
+            <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+              dateStyle: 'full', 
+              timeStyle: 'short' 
+            })}</h2>
+          </div>
+    
+          <!-- Main Content -->
+          <div style="padding: 30px;">
+            <!-- Welcome Message -->
+            <div style="margin-bottom: 30px;">
+              <h3 style="color: #2c3e50; margin-top: 0;">Hi ${request.listing.vendor.name || 'there'}! 👋</h3>
+              <p style="color: #495057; font-size: 15px; line-height: 1.6; margin: 0;">
+                Your approval has been submitted successfully. The renter has been notified, and the rental request 
+                is now confirmed on your end.
+              </p>
+            </div>
+    
+            <!-- Rental Details Card -->
+            <div style="background-color: #e7f3f2; padding: 20px; border-radius: 8px; margin-bottom: 25px; border-left: 4px solid #024a47;">
+              <h4 style="margin: 0 0 15px 0; color: #024a47; font-size: 18px;">📦 Rental Summary</h4>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 8px 0; color: #6c757d; font-size: 14px;">Item:</td>
+                  <td style="padding: 8px 0; color: #2c3e50; font-weight: 600; font-size: 14px; text-align: right;">${request.listing.title}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #6c757d; font-size: 14px;">Renter:</td>
+                  <td style="padding: 8px 0; color: #2c3e50; font-weight: 600; font-size: 14px; text-align: right;">${request.user.name}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #6c757d; font-size: 14px;">Monthly Rent:</td>
+                  <td style="padding: 8px 0; color: #024a47; font-weight: 700; font-size: 16px; text-align: right;">$${request.listing.pricing.rentPrice}/month</td>
+                </tr>
+                ${request.deliveryType ? `
+                <tr>
+                  <td style="padding: 8px 0; color: #6c757d; font-size: 14px;">Delivery Type:</td>
+                  <td style="padding: 8px 0; color: #2c3e50; font-weight: 600; font-size: 14px; text-align: right;">${request.deliveryType}</td>
+                </tr>
+                ` : ''}
+                ${request.installationType ? `
+                <tr>
+                  <td style="padding: 8px 0; color: #6c757d; font-size: 14px;">Installation:</td>
+                  <td style="padding: 8px 0; color: #2c3e50; font-weight: 600; font-size: 14px; text-align: right;">${request.installationType}</td>
+                </tr>
+                ` : ''}
+                <tr>
+                  <td style="padding: 8px 0; color: #6c757d; font-size: 14px;">Status:</td>
+                  <td style="padding: 8px 0; color: #024a47; font-weight: 700; font-size: 14px; text-align: right;">ACTIVE</td>
+                </tr>
+              </table>
+            </div>
+    
+            <!-- Delivery Address -->
+            ${request.deliveryAddress ? `
+            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+              <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">📍 Delivery Location</h4>
+              <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                ${request.deliveryAddress.street || ''}<br>
+                ${request.deliveryAddress.city || ''}, ${request.deliveryAddress.state || ''} ${request.deliveryAddress.zipCode || ''}<br>
+                ${request.deliveryAddress.country || 'USA'}
+              </p>
+            </div>
+            ` : ''}
+    
+            <!-- What to Expect Next -->
+            <div style="margin-bottom: 25px;">
+              <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px; margin-top: 0;">
+                Here's What to Expect Next
+              </h3>
+              
+              <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 15px;">
+                <div style="display: flex; align-items: start; margin-bottom: 15px;">
+                  <span style="color: #024a47; margin-right: 10px; font-size: 18px; font-weight: bold;">•</span>
+                  <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                    The rental will appear as <strong>"Active"</strong> in your dashboard
+                  </p>
+                </div>
+                
+                <div style="display: flex; align-items: start; margin-bottom: 15px;">
+                  <span style="color: #024a47; margin-right: 10px; font-size: 18px; font-weight: bold;">•</span>
+                  <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                    The renter now has full access to communicate and coordinate pickup/delivery
+                  </p>
+                </div>
+                
+                <div style="display: flex; align-items: start; margin-bottom: 15px;">
+                  <span style="color: #024a47; margin-right: 10px; font-size: 18px; font-weight: bold;">•</span>
+                  <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                    Stripe will handle all billing and payout processes based on your connected account settings
+                  </p>
+                </div>
+                
+                <div style="display: flex; align-items: start;">
+                  <span style="color: #024a47; margin-right: 10px; font-size: 18px; font-weight: bold;">•</span>
+                  <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                    If any issues arise, you can manage the request directly from your vendor dashboard
+                  </p>
+                </div>
+              </div>
+            </div>
+    
+            <!-- Call to Action Button -->
+            <div style="text-align: center; margin-top: 30px;">
+              <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/vendordashboard" 
+                 style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                Access Your Dashboard
+              </a>
+            </div>
+    
+            <!-- Thank You Section -->
+            <div style="margin-top: 30px; padding: 20px; background-color: #e7f3f2; border-left: 4px solid #024a47; border-radius: 4px;">
+              <h4 style="margin: 0 0 10px 0; color: #024a47; font-size: 16px;">💚 Thank You</h4>
+              <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                Thanks for supporting a smooth, consistent experience for your renters. Your responsiveness helps 
+                build trust and strengthens the RentSimple marketplace.
+              </p>
+            </div>
+    
+            <!-- Support Section -->
+            <div style="margin-top: 20px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+              <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Assistance?</h4>
+              <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                Our vendor support team is here if you need help with payouts, managing rentals, or any other questions.
+              </p>
+            </div>
+    
+            <!-- Request Reference -->
+            <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px;">
+              <p style="margin: 0; color: #6c757d; font-size: 12px; text-align: center;">
+                Request ID: <strong>#${request._id.toString().slice(-8).toUpperCase()}</strong>
+              </p>
+            </div>
+          </div>
+    
+          <!-- Footer -->
+          <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+            <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+              You're helping create a better rental experience for everyone.
+            </p>
+            <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+              © 2025 RentSimple. All rights reserved.
+            </p>
+          </div>
+        </div>
+      `
+    };
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+          user: 'rentsimple159@gmail.com', 
+          pass: 'upqbbmeobtztqxyg' 
+      }
+      });
+      
+      const info = await transporter.sendMail(vendorMailOptions);
+      await transporter.sendMail(userMailOptions)
+
+
     return res.status(200).json({
       success: true,
       message: "Payment received. Funds will be released to vendor after confirmation.",

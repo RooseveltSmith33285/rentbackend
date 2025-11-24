@@ -388,7 +388,9 @@ app.post('/adminsupportsendmessage',async(req, res) => {
   let { ticketId, message, adminId} = req.body;
   
   try {
-    const ticket = await SupportTicket.findById(ticketId);
+    const ticket = await SupportTicket.findById(ticketId)
+    .populate('userId');
+  
     let adminFound=await adminModel.findOne({email:adminId})
     adminId=adminFound._id
     if (!ticket) {
@@ -424,6 +426,181 @@ app.post('/adminsupportsendmessage',async(req, res) => {
       });
     }
     
+
+     // Send email notification to user
+     if (ticket.userId && ticket.userId.email) {
+      const user = ticket.userId;
+      const userType = ticket.userType || 'user'; // 'user' for renter, 'vendor' for vendor
+      const userName = user.name || user.businessName || user.email;
+      
+      const mailOptions = {
+        from: 'orders@enrichifydata.com',
+        to: user.email,
+        subject: '💬 Support Team Response - RentSimple',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+            <!-- Header -->
+            <div style="background-color: #0d6efd; padding: 30px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">💬 Support Response</h1>
+              <p style="color: #cfe2ff; margin-top: 10px; font-size: 16px;">Our support team has responded to your ticket</p>
+            </div>
+            
+            <!-- Time -->
+            <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+              <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Received On</p>
+              <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+                dateStyle: 'full', 
+                timeStyle: 'short' 
+              })}</h2>
+            </div>
+  
+            <!-- Main Content -->
+            <div style="padding: 30px;">
+              <h3 style="color: #2c3e50; border-bottom: 2px solid #0d6efd; padding-bottom: 10px; margin-top: 0;">
+                Support Team Message
+              </h3>
+              
+              <p style="color: #495057; font-size: 16px; line-height: 1.6; margin-top: 20px;">
+                Hello <strong>${userName}</strong>,
+              </p>
+              
+              <p style="color: #495057; font-size: 16px; line-height: 1.6;">
+                Our support team has responded to your ticket. Please review the message below and feel free to reply if you need further assistance.
+              </p>
+  
+              <!-- Ticket Information -->
+              <h4 style="color: #2c3e50; margin-top: 30px; margin-bottom: 15px;">Ticket Information:</h4>
+              
+              <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                <tr>
+                  <td style="padding: 12px; background-color: #f8f9fa; width: 40%; font-weight: 600; color: #2c3e50;">Ticket ID</td>
+                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; font-family: monospace;">#${ticket._id}</td>
+                </tr>
+                ${ticket.subject ? `
+                <tr>
+                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Subject</td>
+                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${ticket.subject}</td>
+                </tr>
+                ` : ''}
+                ${ticket.category ? `
+                <tr>
+                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Category</td>
+                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${ticket.category}</td>
+                </tr>
+                ` : ''}
+                <tr>
+                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Status</td>
+                  <td style="padding: 12px; border: 1px solid #dee2e6;">
+                    <span style="background-color: #ffc107; color: #000; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; text-transform: uppercase;">${ticket.status}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">User Type</td>
+                  <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${userType === 'vendor' ? 'Vendor' : 'Renter'}</td>
+                </tr>
+              </table>
+  
+              <!-- Support Message -->
+              <div style="margin-top: 30px; padding: 25px; background-color: #e7f3ff; border-left: 4px solid #0d6efd; border-radius: 4px;">
+                <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                  <div style="background-color: #0d6efd; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; margin-right: 15px;">
+                    🛟
+                  </div>
+                  <div>
+                    <h4 style="margin: 0; color: #084298; font-size: 16px;">RentSimple Support Team</h4>
+                    <p style="margin: 0; color: #6c757d; font-size: 12px;">Admin Response</p>
+                  </div>
+                </div>
+                <div style="padding: 15px; background-color: #ffffff; border-radius: 8px; border: 1px solid #b6d4fe;">
+                  <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.8; white-space: pre-wrap;">${message}</p>
+                </div>
+              </div>
+  
+              <!-- Response Reminder -->
+              <div style="margin-top: 30px; padding: 20px; background-color: #d1ecf1; border-left: 4px solid #17a2b8; border-radius: 4px;">
+                <h4 style="margin: 0 0 10px 0; color: #0c5460; font-size: 16px;">💡 Need More Help?</h4>
+                <p style="margin: 0; color: #0c5460; font-size: 14px; line-height: 1.6;">
+                  If you have additional questions or need further clarification, simply reply to this ticket through your dashboard. Our team is here to help you!
+                </p>
+              </div>
+  
+              <!-- Call to Action Button -->
+              <div style="text-align: center; margin-top: 30px;">
+                <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/${userType === 'vendor' ? 'vendor' : 'dashboard'}/support/tickets/${ticket._id}" 
+                   style="display: inline-block; background-color: #0d6efd; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                  View & Reply to Ticket
+                </a>
+              </div>
+  
+              <!-- Quick Tips -->
+              <div style="margin-top: 30px; padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 16px;">⚡ Quick Tips</h4>
+                <ul style="margin: 10px 0; padding-left: 20px; color: #856404; font-size: 14px; line-height: 1.8;">
+                  <li>Reply promptly to get faster resolution</li>
+                  <li>Provide any additional details that might help</li>
+                  <li>Check your dashboard regularly for updates</li>
+                  <li>You can attach screenshots if needed</li>
+                </ul>
+              </div>
+  
+              <!-- Response Time -->
+              <div style="margin-top: 30px; padding: 20px; background-color: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;">
+                <h4 style="margin: 0 0 10px 0; color: #155724; font-size: 16px;">⏰ Our Commitment</h4>
+                <p style="margin: 0; color: #155724; font-size: 14px; line-height: 1.6;">
+                  <strong>Average Response Time:</strong> Our support team typically responds within 2-4 hours during business hours. For urgent matters, we'll prioritize your ticket accordingly.
+                </p>
+              </div>
+  
+              <!-- Support Info -->
+              <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+                <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">📞 Alternative Contact</h4>
+                <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                  For urgent matters, you can also reach us directly through:
+                </p>
+                <ul style="margin: 10px 0 0 0; padding-left: 20px; color: #495057; font-size: 14px; line-height: 1.8;">
+                  <li><strong>Email:</strong> support@rentsimple.com</li>
+                  <li><strong>Phone:</strong> Available in your dashboard</li>
+                </ul>
+              </div>
+  
+              <!-- Ticket ID -->
+              <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px; text-align: center;">
+                <p style="margin: 0; color: #6c757d; font-size: 12px;">
+                  Ticket Reference: <strong>#${ticket._id}</strong> • Message ID: <strong>#${newMessage._id}</strong>
+                </p>
+              </div>
+            </div>
+  
+            <!-- Footer -->
+            <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+              <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+                This is an automated notification from RentSimple Support.
+              </p>
+              <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+                © 2025 RentSimple. All rights reserved.
+              </p>
+              <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+                Please do not reply directly to this email. Use your dashboard to respond to support tickets.
+              </p>
+            </div>
+          </div>
+        `
+      };
+      
+      // Create transporter
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: 'rentsimple159@gmail.com', 
+          pass: 'upqbbmeobtztqxyg' 
+        }
+      });
+
+      // Send email (don't await to avoid blocking the response)
+      transporter.sendMail(mailOptions).catch(err => {
+        console.error('Error sending support message email notification:', err);
+      });
+    }
     res.json({ success: true, messageId: newMessage._id });
     
   } catch (error) {

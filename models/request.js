@@ -51,6 +51,13 @@ ref:'Listing'
             'Unit Mis-Listed'
         ]
     },
+    deliveryAddress: {
+        street: String,
+        city: String,
+        state: String,
+        zipCode: String,
+        country: String
+    },
 },{timestamps:true})
 
 
