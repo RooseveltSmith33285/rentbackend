@@ -3,6 +3,7 @@ const app = express();
 
 
 const fs=require('fs')
+const nodemailer=require('nodemailer')
 
 
 const SupportTicket  = require('./models/ticket');
