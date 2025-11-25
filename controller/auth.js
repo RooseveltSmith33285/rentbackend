@@ -19,11 +19,11 @@ module.exports.register = async (req, res) => {
       const result = await new Promise(async (resolve, reject) => {
           try {
              
-              const user = await userModel.create(data);
+              let user = await userModel.create(data);
               
-            
+            user=user.toObject()
               const generatedToken = jwt.sign(
-                  { _id: user._id, email: user.email }, 
+                  user, 
                   process.env.JWT_KEY, 
                   { expiresIn: '7d' }
               );

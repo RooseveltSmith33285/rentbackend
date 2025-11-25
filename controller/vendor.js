@@ -10,9 +10,8 @@ const {cloudinaryUploadImage}=require('../middleware/cloudinary')
 const requestModel = require('../models/request');
 const listing = require('../models/listing');
 
-const generateToken = (id) => {
-    return jwt.sign({ id }, process.env.JWT_KEY || 'your-secret-key-here-change-in-production', {
-      expiresIn: '30d'
+const generateToken = (vendor) => {
+    return jwt.sign(vendor, process.env.JWT_KEY || 'your-secret-key-here-change-in-production', {
     });
   };
 
@@ -415,7 +414,7 @@ const generateToken = (id) => {
       }
   
      
-      const vendor = await Vendor.findOne({ email: email.toLowerCase() }).select('+password');
+      let vendor = await Vendor.findOne({ email: email.toLowerCase() }).select('+password');
       if (!vendor) {
         return res.status(401).json({ error: 'Invalid email or password' });
       }
@@ -431,8 +430,8 @@ const generateToken = (id) => {
         return res.status(401).json({ error: 'Invalid email or password' });
       }
   
-     
-      const token = generateToken(vendor._id);
+     vendor=vendor.toObject();
+      const token = generateToken(vendor);
   
       res.status(200).json({
         success: true,
