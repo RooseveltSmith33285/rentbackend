@@ -583,138 +583,7 @@ return res.status(200).json({
 let message=await messageModel.create(data)
 let vendor = await Vendor.findById(id);
 let user = await userModel.findById(data.user);
-if (user && user.email) {
-  const userMailOptions = {
-    from: 'orders@enrichifydata.com',
-    to: user.email,
-    subject: '💬 New Message from Vendor - RentSimple',
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-        <!-- Header -->
-        <div style="background-color: #024a47; padding: 30px; text-align: center;">
-          <h1 style="color: #ffffff; margin: 0; font-size: 28px;">💬 New Message</h1>
-          <p style="color: #e9ecef; margin-top: 10px; font-size: 16px;">You have received a message from a vendor</p>
-        </div>
-        
-        <!-- Time -->
-        <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
-          <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Received On</p>
-          <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
-            dateStyle: 'full', 
-            timeStyle: 'short' 
-          })}</h2>
-        </div>
 
-        <!-- Main Content -->
-        <div style="padding: 30px;">
-          <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px; margin-top: 0;">
-            Message from Vendor
-          </h3>
-          
-          <p style="color: #495057; font-size: 16px; line-height: 1.6; margin-top: 20px;">
-            Hello <strong>${user.name || 'there'}</strong>,
-          </p>
-          
-          <p style="color: #495057; font-size: 16px; line-height: 1.6;">
-            A vendor has sent you a message. Please log in to your dashboard to view and respond.
-          </p>
-
-          <!-- Vendor Information -->
-          <h4 style="color: #2c3e50; margin-top: 30px; margin-bottom: 15px;">Vendor Information:</h4>
-          
-          <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-            <tr>
-              <td style="padding: 12px; background-color: #f8f9fa; width: 40%; font-weight: 600; color: #2c3e50;">Vendor Name</td>
-              <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${vendor?.name || vendor?.businessName || 'RentSimple Vendor'}</td>
-            </tr>
-            ${vendor?.email ? `
-            <tr>
-              <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Vendor Email</td>
-              <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${vendor.email}</td>
-            </tr>
-            ` : ''}
-          </table>
-
-          <!-- Message Preview -->
-          <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-left: 4px solid #024a47; border-radius: 4px;">
-            <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Message:</h4>
-            <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
-              "${data.message || 'No message content'}"
-            </p>
-          </div>
-
-          <!-- Call to Action Button -->
-          <div style="text-align: center; margin-top: 30px;">
-            <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/dashboard/messages" 
-               style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
-              View & Reply to Message
-            </a>
-          </div>
-
-          <!-- Response Reminder -->
-          <div style="margin-top: 30px; padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
-            <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 16px;">⏰ Stay Connected</h4>
-            <p style="margin: 0; color: #856404; font-size: 14px; line-height: 1.6;">
-              Vendors appreciate timely responses. Check your messages regularly to maintain good communication and ensure a smooth rental experience.
-            </p>
-          </div>
-
-          <!-- Why This Message -->
-          <div style="margin-top: 30px; padding: 20px; background-color: #e7f3f2; border-left: 4px solid #024a47; border-radius: 4px;">
-            <h4 style="margin: 0 0 10px 0; color: #024a47; font-size: 16px;">💡 About This Message</h4>
-            <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
-              This message may be related to:
-            </p>
-            <ul style="margin: 10px 0 0 0; padding-left: 20px; color: #495057; font-size: 14px; line-height: 1.8;">
-              <li>A rental request you submitted</li>
-              <li>Delivery or pickup coordination</li>
-              <li>Product availability updates</li>
-              <li>Payment or rental terms clarification</li>
-              <li>General inquiries about your rental</li>
-            </ul>
-          </div>
-
-          <!-- Support Info -->
-          <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
-            <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Help?</h4>
-            <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
-              If you have any questions or need assistance with your messages, please contact our support team.
-            </p>
-          </div>
-
-          <!-- Message ID -->
-          <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px; text-align: center;">
-            <p style="margin: 0; color: #6c757d; font-size: 12px;">Message ID: <strong>#${message._id}</strong></p>
-          </div>
-        </div>
-
-        <!-- Footer -->
-        <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
-          <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
-            This is an automated notification from RentSimple.
-          </p>
-          <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
-            © 2025 RentSimple. All rights reserved.
-          </p>
-        </div>
-      </div>
-    `
-  };
-
-  // Create transporter
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: 'rentsimple159@gmail.com', 
-      pass: 'upqbbmeobtztqxyg' 
-    }
-  });
-
-  // Send email (don't await to avoid blocking the response)
-  transporter.sendMail(userMailOptions).catch(err => {
-    console.error('Error sending email notification to user:', err);
-  });
-}
 
 return res.status(200).json({
     message:"Message sent sucessfully",
@@ -1522,7 +1391,7 @@ module.exports.generateStripeOnboardingLink = async (req, res) => {
       });
     }
     
-    
+
   
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
