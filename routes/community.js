@@ -9,7 +9,8 @@ const {
   createComment,
   getComments,
   getPost,
-  deleteComment
+  deleteComment,
+  deletePost
 } = require('../controller/community');
 
 
@@ -22,4 +23,6 @@ router.post('/community/posts/:postId/comments', Auth, createComment);
 router.get('/community/posts/:postId/comments', getComments);
 router.delete('/community/posts/:postId/comments/:commentId', Auth, deleteComment);
 router.get('/community/posts/:postId', getPost);
+
+router.delete('/community/posts/:id',deletePost)
 module.exports = router;

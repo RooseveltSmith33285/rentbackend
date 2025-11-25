@@ -498,216 +498,206 @@ module.exports.updateProduct = async (req, res) => {
         }
         
         if(data?.status=='active'){
-              
-            const mailOptions = {
-                from: 'orders@enrichifydata.com',
-                to: updatedProduct.vendor.email, 
-                subject: 'Your Listing Has Been Approved! 🎉',
-                html: `
-                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-                    <!-- Header -->
-                    <div style="background-color: #024a47; padding: 30px; text-align: center;">
-                      <h1 style="color: #ffffff; margin: 0; font-size: 28px;">🎉 Your Listing is Approved!</h1>
-                      <p style="color: #ecf0f1; margin-top: 10px; font-size: 16px;">Your product is now live on RentSimple</p>
-                    </div>
+          const mailOptions = {
+            from: 'orders@enrichifydata.com',
+            to: updatedProduct.vendor.email, 
+            subject: 'Your Listing Has Been Approved! 🎉',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                <!-- Header -->
+                <div style="background-color: #024a47; padding: 30px; text-align: center;">
+                  <h1 style="color: #ffffff; margin: 0; font-size: 28px;">✅ Listing Approved!</h1>
+                  <p style="color: #ecf0f1; margin-top: 10px; font-size: 16px;">Your product is now live on RentSimple</p>
+                </div>
+                
+                <!-- Approval Time -->
+                <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+                  <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Approved On</p>
+                  <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+                    dateStyle: 'full', 
+                    timeStyle: 'short' 
+                  })}</h2>
+                </div>
+          
+                <!-- Main Content -->
+                <div style="padding: 30px;">
+                  <!-- Approval Message -->
+                  <div style="margin-bottom: 30px;">
+                    <h3 style="color: #2c3e50; margin-top: 0;">Hi ${updatedProduct.vendor.name || updatedProduct.vendor.businessName || 'there'},</h3>
+                    <p style="color: #495057; font-size: 15px; line-height: 1.6; margin: 0 0 15px 0;">
+                      Good news — your listing has been reviewed and officially approved. It's now live on the RentSimple marketplace and ready for renters to discover.
+                    </p>
+                    <p style="color: #495057; font-size: 15px; line-height: 1.6; margin: 0 0 15px 0;">
+                      Your item is fully activated and eligible for rental requests, payouts, and visibility across the platform. This is a strong step forward in expanding your revenue stream and increasing your exposure to local renters.
+                    </p>
+                    <p style="color: #495057; font-size: 15px; line-height: 1.6; margin: 0;">
+                      If you'd like to optimize the listing or add additional inventory, feel free to update your dashboard at any time. Our team is here to support you as you scale.
+                    </p>
+                  </div>
+          
+                  <!-- Success Badge -->
+                  <div style="margin-bottom: 30px; padding: 20px; background-color: #d4edda; border-left: 4px solid #28a745; border-radius: 4px; text-align: center;">
+                    <h4 style="margin: 0 0 10px 0; color: #155724; font-size: 18px;">✅ Now Live & Active</h4>
+                    <p style="margin: 0; color: #155724; font-size: 14px; line-height: 1.6;">
+                      Your listing is fully visible to customers and ready to generate rental income.
+                    </p>
+                  </div>
+          
+                  <!-- Product Information -->
+                  <div style="margin-bottom: 25px;">
+                    <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px; margin-top: 0;">
+                      📦 Approved Listing Details
+                    </h3>
                     
-                    <!-- Approval Time -->
-                    <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
-                      <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Approved On</p>
-                      <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
-                        dateStyle: 'full', 
-                        timeStyle: 'short' 
-                      })}</h2>
+                    ${updatedProduct.images && updatedProduct.images.length > 0 ? `
+                    <div style="text-align: center; margin: 20px 0;">
+                      <img src="${updatedProduct.images.find(img => img.isPrimary)?.url || updatedProduct.images[0].url}" 
+                           alt="${updatedProduct.title}" 
+                           style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #dee2e6;" />
                     </div>
-              
-                    <!-- Main Content -->
-                    <div style="padding: 30px;">
-                      <!-- Approval Message -->
-                      <div style="margin-bottom: 30px;">
-                        <h3 style="color: #2c3e50; margin-top: 0;">Congratulations, ${updatedProduct.vendor.name || updatedProduct.vendor.businessName || 'there'}! 👋</h3>
-                        <p style="color: #495057; font-size: 15px; line-height: 1.6; margin: 0;">
-                          Great news! Our admin team has reviewed and approved your listing. Your product is now visible to thousands of potential customers on RentSimple and ready to start generating rental income.
-                        </p>
-                      </div>
-              
-                      <!-- Product Information -->
-                      <div style="margin-bottom: 25px;">
-                        <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px; margin-top: 0;">
-                          📦 Approved Listing Details
-                        </h3>
-                        
-                        ${updatedProduct.images && updatedProduct.images.length > 0 ? `
-                        <div style="text-align: center; margin: 20px 0;">
-                          <img src="${updatedProduct.images.find(img => img.isPrimary)?.url || updatedProduct.images[0].url}" 
-                               alt="${updatedProduct.title}" 
-                               style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #dee2e6;" />
-                        </div>
-                        ` : ''}
-                        
-                        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-                          <tr>
-                            <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Product</td>
-                            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${updatedProduct.title}</td>
-                          </tr>
-                          <tr>
-                            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Brand</td>
-                            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${updatedProduct.brand}</td>
-                          </tr>
-                          <tr>
-                            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Category</td>
-                            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${updatedProduct.category}</td>
-                          </tr>
-                          <tr>
-                            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Condition</td>
-                            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${updatedProduct.condition}</td>
-                          </tr>
-                          <tr>
-                            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Monthly Rent</td>
-                            <td style="padding: 12px; border: 1px solid #dee2e6; color: #024a47; font-weight: 700; font-size: 18px;">$${updatedProduct.pricing.rentPrice}/mo</td>
-                          </tr>
-                          <tr>
-                            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Buy Price</td>
-                            <td style="padding: 12px; border: 1px solid #dee2e6; color: #2c3e50; font-weight: 600; font-size: 16px;">$${updatedProduct.pricing.buyPrice}</td>
-                          </tr>
-                          <tr>
-                            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Status</td>
-                            <td style="padding: 12px; border: 1px solid #dee2e6;">
-                              <span style="background-color: #d4edda; 
-                                           color: #155724; 
-                                           padding: 4px 12px; 
-                                           border-radius: 12px; 
-                                           font-size: 13px; 
-                                           font-weight: 600;">
-                                ✓ Active & Live
-                              </span>
-                            </td>
-                          </tr>
-                          ${updatedProduct.availability?.location ? `
-                          <tr>
-                            <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Location</td>
-                            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${updatedProduct.availability.location}</td>
-                          </tr>
-                          ` : ''}
-                        </table>
-                      </div>
-              
-                      <!-- Success Message -->
-                      <div style="margin-bottom: 25px; padding: 20px; background-color: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;">
-                        <h4 style="margin: 0 0 10px 0; color: #155724; font-size: 16px;">✓ Your Listing is Now Live!</h4>
-                        <p style="margin: 0; color: #155724; font-size: 14px; line-height: 1.6;">
-                          Your product has passed our quality review and is now visible to customers. You'll receive email notifications whenever someone sends a rental request for this item.
-                        </p>
-                      </div>
-              
-                      <!-- What Happens Next -->
-                      <div style="margin-bottom: 25px;">
-                        <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px;">
-                          🚀 What Happens Next?
-                        </h3>
-                        
-                        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 15px;">
-                          <div style="margin-bottom: 20px;">
-                            <div style="display: flex; align-items: start; margin-bottom: 15px;">
-                              <span style="background-color: #024a47; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">1</span>
-                              <div>
-                                <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Watch for Rental Requests</h4>
-                                <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
-                                  Customers can now send rental requests. We'll notify you via email and in your dashboard.
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-              
-                          <div style="margin-bottom: 20px;">
-                            <div style="display: flex; align-items: start; margin-bottom: 15px;">
-                              <span style="background-color: #024a47; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">2</span>
-                              <div>
-                                <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Review & Approve Requests</h4>
-                                <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
-                                  Check customer details and approve requests that work for you. Quick responses lead to more bookings!
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-              
+                    ` : ''}
+                    
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                      <tr>
+                        <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Product</td>
+                        <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${updatedProduct.title}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Brand</td>
+                        <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${updatedProduct.brand}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Category</td>
+                        <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${updatedProduct.category}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Condition</td>
+                        <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${updatedProduct.condition}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Monthly Rent</td>
+                        <td style="padding: 12px; border: 1px solid #dee2e6; color: #024a47; font-weight: 700; font-size: 18px;">$${updatedProduct.pricing.rentPrice}/mo</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Buy Price</td>
+                        <td style="padding: 12px; border: 1px solid #dee2e6; color: #2c3e50; font-weight: 600; font-size: 16px;">$${updatedProduct.pricing.buyPrice}</td>
+                      </tr>
+                      ${updatedProduct.availability?.location ? `
+                      <tr>
+                        <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Location</td>
+                        <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${updatedProduct.availability.location}</td>
+                      </tr>
+                      ` : ''}
+                    </table>
+                  </div>
+          
+                  <!-- What's Next -->
+                  <div style="margin-bottom: 25px;">
+                    <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px;">
+                      🚀 What's Next?
+                    </h3>
+                    
+                    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 15px;">
+                      <div style="margin-bottom: 20px;">
+                        <div style="display: flex; align-items: start; margin-bottom: 15px;">
+                          <span style="background-color: #024a47; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">1</span>
                           <div>
-                            <div style="display: flex; align-items: start;">
-                              <span style="background-color: #024a47; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">3</span>
-                              <div>
-                                <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Start Earning</h4>
-                                <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
-                                  Once a rental is confirmed, coordinate delivery and receive your payment securely through RentSimple.
-                                </p>
-                              </div>
-                            </div>
+                            <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Receive Rental Requests</h4>
+                            <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
+                              Customers can now send rental requests. You'll be notified via email and in your dashboard.
+                            </p>
                           </div>
                         </div>
                       </div>
-              
-                      <!-- Call to Action Button -->
-                      <div style="text-align: center; margin-top: 30px;">
-                        <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/vendordashboard" 
-                           style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
-                          View Your Dashboard
-                        </a>
+          
+                      <div style="margin-bottom: 20px;">
+                        <div style="display: flex; align-items: start; margin-bottom: 15px;">
+                          <span style="background-color: #024a47; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">2</span>
+                          <div>
+                            <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Review & Accept</h4>
+                            <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
+                              Review customer details and approve requests that work for your schedule.
+                            </p>
+                          </div>
+                        </div>
                       </div>
-              
-                      <!-- Tips Section -->
-                      <div style="margin-top: 30px; padding: 20px; background-color: #e7f3f2; border-left: 4px solid #024a47; border-radius: 4px;">
-                        <h4 style="margin: 0 0 10px 0; color: #024a47; font-size: 16px;">💡 Maximize Your Rental Success</h4>
-                        <ul style="margin: 10px 0; padding-left: 20px; color: #495057; font-size: 14px; line-height: 1.8;">
-                          <li><strong>Respond fast:</strong> Reply to rental requests within 2-4 hours to increase conversion by 60%</li>
-                          <li><strong>Keep it updated:</strong> Mark unavailable dates on your calendar to avoid conflicts</li>
-                          <li><strong>Professional service:</strong> Clean, inspect, and test items before each rental</li>
-                          <li><strong>Build reputation:</strong> Great service leads to positive reviews and repeat customers</li>
-                        </ul>
+          
+                      <div>
+                        <div style="display: flex; align-items: start;">
+                          <span style="background-color: #024a47; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">3</span>
+                          <div>
+                            <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Get Paid</h4>
+                            <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
+                              Receive secure payouts directly to your connected bank account after each rental.
+                            </p>
+                          </div>
+                        </div>
                       </div>
-              
-                      <!-- Stats Highlight -->
-                      <div style="margin-top: 25px;">
-                        <table style="width: 100%; border-collapse: collapse;">
-                          <tr>
-                            <td style="padding: 20px; background-color: #f8f9fa; text-align: center; border-right: 1px solid #dee2e6; width: 50%;">
-                              <div style="font-size: 32px; font-weight: 700; color: #024a47; margin-bottom: 5px;">$${updatedProduct.pricing.rentPrice}</div>
-                              <div style="color: #6c757d; font-size: 13px;">Monthly Rental Income Potential</div>
-                            </td>
-                            <td style="padding: 20px; background-color: #f8f9fa; text-align: center; width: 50%;">
-                              <div style="font-size: 32px; font-weight: 700; color: #024a47; margin-bottom: 5px;">24/7</div>
-                              <div style="color: #6c757d; font-size: 13px;">Your Listing Works For You</div>
-                            </td>
-                          </tr>
-                        </table>
-                      </div>
-              
-                      <!-- Customer Support -->
-                      <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
-                        <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Help?</h4>
-                        <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
-                          Questions about managing rentals, payments, or anything else? Our support team is here to help you succeed on RentSimple.
-                        </p>
-                      </div>
-              
-                      <!-- Listing ID -->
-                      <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px; text-align: center;">
-                        <p style="margin: 0; color: #6c757d; font-size: 12px;">
-                          Listing ID: <strong>#${updatedProduct._id}</strong> • Account: ${updatedProduct.vendor.email}
-                        </p>
-                      </div>
-                    </div>
-              
-                    <!-- Footer -->
-                    <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
-                      <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
-                        Thank you for choosing RentSimple!
-                      </p>
-                      <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
-                        © 2025 RentSimple. All rights reserved.
-                      </p>
                     </div>
                   </div>
-                `
-              };
-
+          
+                  <!-- Call to Action Button -->
+                  <div style="text-align: center; margin-top: 30px;">
+                    <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/vendordashboard" 
+                       style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                      View Your Dashboard
+                    </a>
+                  </div>
+          
+                  <!-- Revenue Potential -->
+                  <div style="margin-top: 30px;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 20px; background-color: #f8f9fa; text-align: center; border-right: 1px solid #dee2e6; width: 50%;">
+                          <div style="font-size: 32px; font-weight: 700; color: #024a47; margin-bottom: 5px;">$${updatedProduct.pricing.rentPrice}</div>
+                          <div style="color: #6c757d; font-size: 13px;">Monthly Income Potential</div>
+                        </td>
+                        <td style="padding: 20px; background-color: #f8f9fa; text-align: center; width: 50%;">
+                          <div style="font-size: 32px; font-weight: 700; color: #024a47; margin-bottom: 5px;">24/7</div>
+                          <div style="color: #6c757d; font-size: 13px;">Your Listing Works For You</div>
+                        </td>
+                      </tr>
+                    </table>
+                  </div>
+          
+                  <!-- Optimize Your Listing -->
+                  <div style="margin-top: 30px; padding: 20px; background-color: #e7f3f2; border-left: 4px solid #024a47; border-radius: 4px;">
+                    <h4 style="margin: 0 0 10px 0; color: #024a47; font-size: 16px;">💡 Tips to Maximize Success</h4>
+                    <ul style="margin: 10px 0; padding-left: 20px; color: #495057; font-size: 14px; line-height: 1.8;">
+                      <li>Respond to rental requests quickly to increase bookings</li>
+                      <li>Keep your availability calendar updated</li>
+                      <li>Add more quality photos to build trust</li>
+                      <li>Consider adding more inventory to increase revenue</li>
+                    </ul>
+                  </div>
+          
+                  <!-- Closing Message -->
+                  <div style="margin-top: 30px; text-align: center;">
+                    <p style="color: #495057; font-size: 15px; line-height: 1.6; margin: 0;">
+                      Thanks for partnering with RentSimple — we're excited to see your listing perform.
+                    </p>
+                  </div>
+          
+                  <!-- Listing ID -->
+                  <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px; text-align: center;">
+                    <p style="margin: 0; color: #6c757d; font-size: 12px;">
+                      Listing ID: <strong>#${updatedProduct._id}</strong> • Account: ${updatedProduct.vendor.email}
+                    </p>
+                  </div>
+                </div>
+          
+                <!-- Footer -->
+                <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+                  <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+                    Thank you for choosing RentSimple!
+                  </p>
+                  <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+                    © 2025 RentSimple. All rights reserved.
+                  </p>
+                </div>
+              </div>
+            `
+          };
       const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
@@ -871,11 +861,11 @@ module.exports.updateProduct = async (req, res) => {
               
                       <!-- Call to Action Buttons -->
                       <div style="text-align: center; margin-top: 30px;">
-                        <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/support" 
+                        <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/chat" 
                            style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 0 10px 10px 10px;">
                           Contact Support
                         </a>
-                        <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/vendordashboard" 
+                        <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/vendordashboard" 
                            style="display: inline-block; background-color: #6c757d; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 0 10px 10px 10px;">
                           View Dashboard
                         </a>
@@ -1665,7 +1655,7 @@ module.exports.adminsupportsendmessage=async(req,res)=>{
     
                 <!-- Call to Action Button -->
                 <div style="text-align: center; margin-top: 30px;">
-                  <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/${userType === 'vendor' ? 'vendor' : 'dashboard'}/support/tickets/${ticket._id}" 
+                  <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/${userType === 'vendor' ? 'vendor' : 'dashboard'}/support/tickets/${ticket._id}" 
                      style="display: inline-block; background-color: #0d6efd; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
                     View & Reply to Ticket
                   </a>
@@ -1929,5 +1919,25 @@ module.exports.markMessageAsRead = async (req, res) => {
       return res.status(400).json({
         error: "Error occurred while trying to get Admin"
       });
+    }
+  }
+
+  module.exports.checkValidAdmin=async(req,res)=>{
+  let {email}=req.body;
+    try{
+let adminFound=await adminModel.findOne({email})
+if(!adminFound){
+return res.status(400).json({
+  error:"No admin found"
+})
+}
+return res.status(200).json({
+  adminFound
+})
+    }catch(e){
+      console.log(e.message)
+      return res.status(400).json({
+        error:"Error trying to get admin"
+      })
     }
   }

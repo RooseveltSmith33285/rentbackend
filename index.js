@@ -526,7 +526,7 @@ app.post('/adminsupportsendmessage',async(req, res) => {
   
               <!-- Call to Action Button -->
               <div style="text-align: center; margin-top: 30px;">
-                <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/${userType === 'vendor' ? 'vendor' : 'dashboard'}/support/tickets/${ticket._id}" 
+                <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/${userType === 'vendor' ? 'vendor' : 'dashboard'}/support/tickets/${ticket._id}" 
                    style="display: inline-block; background-color: #0d6efd; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
                   View & Reply to Ticket
                 </a>

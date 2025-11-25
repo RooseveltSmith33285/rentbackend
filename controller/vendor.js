@@ -150,13 +150,13 @@ const generateToken = (id) => {
         <div style="margin-top: 25px;">
           <h4 style="color: #2c3e50; margin-bottom: 15px;">Quick Actions</h4>
           <div style="text-align: center;">
-            <a href="${process.env.ADMIN_URL || 'https://rentsimple.com'}/vendordashboard" 
+            <a href="${process.env.ADMIN_URL || 'https://rentsimpledeals.com'}/vendorprofile" 
                style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; margin: 5px;">
               View Vendor Profile
             </a>
-            <a href="${process.env.ADMIN_URL || 'https://rentsimple.com'}/vendordashboard" 
+            <a href="${process.env.ADMIN_URL || 'https://rentsimpledeals.com'}/vendordashboard" 
                style="display: inline-block; background-color: #6c757d; color: #ffffff; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; margin: 5px;">
-              Go to Admin Dashboard
+              Go to  Dashboard
             </a>
           </div>
         </div>
@@ -321,7 +321,7 @@ const generateToken = (id) => {
       
                   <!-- Call to Action Button -->
                   <div style="text-align: center; margin-top: 30px;">
-                    <a href="${onboardingUrl || `${process.env.FRONTEND_URL || 'https://rentsimple.com'}/vendor/stripe-setup`}" 
+                    <a href="${onboardingUrl || `${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/vendor/stripe-setup`}" 
                        style="display: inline-block; background-color: #17a2b8; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
                       Verify Banking Information Now
                     </a>
@@ -462,6 +462,7 @@ const generateToken = (id) => {
     try{
       let id=req?.user?._id?req?.user?._id:req.user.id
 let vendor=await Vendor.findById(id)
+console.log(vendor)
 return res.status(200).json({
   vendor
 })
@@ -644,7 +645,7 @@ if (user && user.email) {
 
           <!-- Call to Action Button -->
           <div style="text-align: center; margin-top: 30px;">
-            <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/dashboard/messages" 
+            <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/dashboard/messages" 
                style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
               View & Reply to Message
             </a>
@@ -956,7 +957,7 @@ module.exports.approveRequest=async(req,res)=>{
 
             <!-- Call to Action Button -->
             <div style="text-align: center; margin-top: 30px;">
-              <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/vendor/requests" 
+              <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/vendor/requests" 
                  style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
                 View All Requests
               </a>
@@ -1081,7 +1082,7 @@ module.exports.approveRequest=async(req,res)=>{
     
             <!-- Call to Action Button -->
             <div style="text-align: center; margin-top: 30px;">
-              <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/renterdashboard" 
+              <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/renterdashboard" 
                  style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
                 View Request & Confirm Payment
               </a>
@@ -1238,17 +1239,11 @@ let request = await requestModel.findById(id)
               </div>
               ` : ''}
   
-              <!-- Product Still Available -->
-              <div style="margin-top: 30px; padding: 20px; background-color: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;">
-                <h4 style="margin: 0 0 10px 0; color: #155724; font-size: 16px;">✅ Your Listing is Still Active</h4>
-                <p style="margin: 0; color: #155724; font-size: 14px; line-height: 1.6;">
-                  Your product remains available for other customers to rent. Other interested renters can still submit requests for this item.
-                </p>
-              </div>
+           
   
               <!-- Call to Action Button -->
               <div style="text-align: center; margin-top: 30px;">
-                <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/vendor/requests" 
+                <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/vendor/requests" 
                    style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
                   View All Requests
                 </a>
@@ -1389,14 +1384,14 @@ const userMailOptions = {
 
         <!-- Call to Action Buttons -->
         <div style="text-align: center; margin-top: 30px;">
-          <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/appliance" 
+          <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/appliance" 
              style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 0 5px;">
             Browse More Products
           </a>
         </div>
 
         <div style="text-align: center; margin-top: 15px;">
-          <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/renterdashboard" 
+          <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/renterdashboard" 
              style="display: inline-block; background-color: #6c757d; color: #ffffff; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">
             View All My Requests
           </a>
@@ -1526,6 +1521,7 @@ module.exports.generateStripeOnboardingLink = async (req, res) => {
         pending_verification: account.requirements?.pending_verification
       });
     }
+    
     
   
     const accountLink = await stripe.accountLinks.create({
@@ -1688,3 +1684,46 @@ module.exports.checkStripeAccountStatus = async (req, res) => {
     });
   }
 };
+
+
+module.exports.updateVendorProfile=async(req,res)=>{
+  let id=req?.user?._id?req?.user?._id:req.user.id
+  const {...data}=req.body
+  try{
+let vendor=await Vendor.findByIdAndUpdate(id,{
+  $set:data
+})
+return res.status(200).json({
+  message:"Profile updated sucessfully"
+})
+  }catch(e){
+    console.log(e.message)
+    return res.status(400).json({
+      error:"Error trying to get vendor profile"
+    })
+  }
+}
+
+
+
+
+module.exports.changeVendorPassword=async(req,res)=>{
+  try {
+    const { currentPassword, newPassword } = req.body;
+let id=req?.user?._id?req?.user?._id:req.user.id
+    const vendor = await Vendor.findById(id).select('+password');
+    
+    const isMatch = await Vendor.findOne({_id:id,password:currentPassword})
+    if (!isMatch) {
+      return res.status(401).json({ success: false, error: 'Current password is incorrect' });
+    }
+    
+    vendor.password = newPassword;
+    await vendor.save();
+    
+    return res.json({ success: true, message: 'Password changed successfully' });
+  } catch (error) {
+    console.log(error.message)
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}

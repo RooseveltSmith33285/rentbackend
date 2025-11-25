@@ -182,7 +182,7 @@ html: `
 
       <!-- Call to Action Button -->
       <div style="text-align: center; margin-top: 30px;">
-        <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/vendordashboard/requests" 
+        <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/vendordashboard" 
            style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
           Review Request Now
         </a>
@@ -382,7 +382,7 @@ const userMailOptions = {
 
         <!-- Call to Action Button -->
         <div style="text-align: center; margin-top: 30px;">
-          <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/renterdashboard" 
+          <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/renterdashboard" 
              style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
             View My Requests
           </a>
@@ -458,6 +458,29 @@ return res.status(200).json({
             error:"Error occured while trying to fetch requests"
         })
     }
+}
+
+
+module.exports.getRequestsProfileUser=async(req,res)=>{
+  try{
+      let requests = await requestModel.find({
+          user: req.user._id,
+          $or: [
+            {status:'approved'},
+            {status:'pending'}
+          ],
+          deliveryType:'delivery'
+        }).populate('listing');
+        console.log(requests)
+return res.status(200).json({
+  requests
+})
+  }catch(e){
+      console.log(e.message)
+      return res.status(400).json({
+          error:"Error occured while trying to fetch requests"
+      })
+  }
 }
 
 module.exports.rejectOffer = async(req, res) => {
@@ -616,7 +639,7 @@ console.log(id)
 
                           <!-- Call to Action Button -->
                           <div style="text-align: center; margin-top: 30px;">
-                              <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/vendor/listings" 
+                              <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/vendor/listings" 
                                  style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
                                   View My Listings
                               </a>
@@ -769,11 +792,11 @@ console.log(id)
   
                         <!-- Call to Action Buttons -->
                         <div style="text-align: center; margin-top: 30px;">
-                            <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/browse" 
+                            <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/browse" 
                                style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 0 10px 10px 0;">
                                 Browse Products
                             </a>
-                            <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/renterdashboard" 
+                            <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/renterdashboard" 
                                style="display: inline-block; background-color: #6c757d; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 0 0 10px 10px;">
                                 View My Requests
                             </a>
@@ -1939,3 +1962,244 @@ module.exports.rejectDeliveryAndInstallation = async(req, res) => {
     });
   }
 };
+
+module.exports.updateDeliveryAddress=async(req,res)=>{
+  let {id}=req.params;
+  let {deliveryAddress}=req.body;
+  try{
+await requestModel.findByIdAndUpdate(id,{
+  $set:{
+    deliveryAddress
+  }
+})
+const updatedRequest = await requestModel.findById(id)
+  .populate('vendor')
+  .populate('listing')
+  .populate('user');
+
+  
+  const vendorUpdateMailOptions = {
+    from: 'orders@enrichifydata.com',
+    to: updatedRequest.vendor.email,
+    subject: '📍 Delivery Address Updated - Action Required',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+        <!-- Header -->
+        <div style="background-color: #0d6efd; padding: 30px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 28px;">📍 Address Updated</h1>
+          <p style="color: #e9ecef; margin-top: 10px; font-size: 16px;">Renter has updated their delivery address</p>
+        </div>
+        
+        <!-- Time -->
+        <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+          <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Updated On</p>
+          <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+            dateStyle: 'full', 
+            timeStyle: 'short' 
+          })}</h2>
+        </div>
+  
+        <!-- Main Content -->
+        <div style="padding: 30px;">
+          <h3 style="color: #2c3e50; margin-top: 0;">Hello ${updatedRequest.vendor.name || updatedRequest.vendor.businessName},</h3>
+          <p style="color: #495057; font-size: 15px; line-height: 1.6;">
+            The renter <strong>${updatedRequest.user.name}</strong> has updated their delivery address for the following rental request. Please review the new address details below.
+          </p>
+  
+          <!-- Alert Notice -->
+          <div style="margin: 25px 0; padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+            <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 16px;">⚠️ Action Required</h4>
+            <p style="margin: 0; color: #856404; font-size: 14px; line-height: 1.6;">
+              Please verify the new delivery address and confirm if you can service this location. If there are any issues, contact the renter as soon as possible.
+            </p>
+          </div>
+  
+          <!-- Request Information -->
+          <div style="margin-bottom: 25px;">
+            <h3 style="color: #2c3e50; border-bottom: 2px solid #0d6efd; padding-bottom: 10px;">
+              📋 Request Information
+            </h3>
+            
+            <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+              <tr>
+                <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Request ID</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; font-family: monospace;">#${updatedRequest._id}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Listing ID</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; font-family: monospace;">#${updatedRequest.listing._id}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Status</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6;">
+                  <span style="background-color: ${updatedRequest.status === 'approved' ? '#28a745' : updatedRequest.status === 'rejected' ? '#dc3545' : '#ffc107'}; color: ${updatedRequest.status === 'pending' ? '#000' : '#fff'}; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; text-transform: uppercase;">
+                    ${updatedRequest.status}
+                  </span>
+                </td>
+              </tr>
+            </table>
+          </div>
+  
+          <!-- Product Details -->
+          <div style="margin-bottom: 25px;">
+            <h3 style="color: #2c3e50; border-bottom: 2px solid #0d6efd; padding-bottom: 10px;">
+              📦 Product Details
+            </h3>
+            
+            ${updatedRequest.listing.images && updatedRequest.listing.images.length > 0 ? `
+            <div style="text-align: center; margin: 20px 0;">
+              <img src="${updatedRequest.listing.images.find(img => img.isPrimary)?.url || updatedRequest.listing.images[0].url}" 
+                   alt="${updatedRequest.listing.title}" 
+                   style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #dee2e6;" />
+            </div>
+            ` : ''}
+            
+            <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+              <tr>
+                <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Product</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${updatedRequest.listing.title}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Brand</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${updatedRequest.listing.brand}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Category</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${updatedRequest.listing.category}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Condition</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${updatedRequest.listing.condition}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Monthly Rent</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; color: #0d6efd; font-weight: 700; font-size: 18px;">$${updatedRequest.listing.pricing.rentPrice}/mo</td>
+              </tr>
+              ${updatedRequest.deliveryType ? `
+              <tr>
+                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Delivery Type</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${updatedRequest.deliveryType}</td>
+              </tr>
+              ` : ''}
+              ${updatedRequest.installationType ? `
+              <tr>
+                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Installation</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; text-transform: capitalize;">${updatedRequest.installationType}</td>
+              </tr>
+              ` : ''}
+              ${updatedRequest.listing.deliveryPrice ? `
+              <tr>
+                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Delivery Fee</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">$${updatedRequest.listing.deliveryPrice}</td>
+              </tr>
+              ` : ''}
+              ${updatedRequest.listing.installationPrice ? `
+              <tr>
+                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Installation Fee</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">$${updatedRequest.listing.installationPrice}</td>
+              </tr>
+              ` : ''}
+            </table>
+          </div>
+  
+          <!-- New Delivery Address -->
+          <div style="margin-bottom: 25px;">
+            <h3 style="color: #2c3e50; border-bottom: 2px solid #28a745; padding-bottom: 10px;">
+              📍 New Delivery Address
+            </h3>
+            
+            <div style="margin-top: 20px; padding: 20px; background-color: #d4edda; border: 2px solid #28a745; border-radius: 8px;">
+              <div style="color: #155724; font-size: 16px; line-height: 1.8;">
+                <p style="margin: 0 0 8px 0; font-weight: 600; font-size: 18px;">📮 Updated Address:</p>
+                <p style="margin: 0 0 5px 0;"><strong>Street:</strong> ${deliveryAddress.street}</p>
+                <p style="margin: 0 0 5px 0;"><strong>City:</strong> ${deliveryAddress.city}</p>
+                <p style="margin: 0 0 5px 0;"><strong>State:</strong> ${deliveryAddress.state}</p>
+                <p style="margin: 0 0 5px 0;"><strong>Zip Code:</strong> ${deliveryAddress.zipCode}</p>
+                <p style="margin: 0;"><strong>Country:</strong> ${deliveryAddress.country}</p>
+              </div>
+            </div>
+          </div>
+  
+          <!-- Customer Information -->
+          <div style="margin-bottom: 25px;">
+            <h3 style="color: #2c3e50; border-bottom: 2px solid #0d6efd; padding-bottom: 10px;">
+              👤 Customer Information
+            </h3>
+            
+            <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+              <tr>
+                <td style="padding: 12px; background-color: #f8f9fa; width: 35%; font-weight: 600; color: #2c3e50;">Name</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${updatedRequest.user.name}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Email</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${updatedRequest.user.email}</td>
+              </tr>
+              ${updatedRequest.user.mobile ? `
+              <tr>
+                <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Mobile</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${updatedRequest.user.mobile}</td>
+              </tr>
+              ` : ''}
+            </table>
+          </div>
+  
+          <!-- Next Steps -->
+          <div style="margin-bottom: 25px; padding: 20px; background-color: #e7f3ff; border-left: 4px solid #0d6efd; border-radius: 4px;">
+            <h4 style="margin: 0 0 10px 0; color: #0d6efd; font-size: 16px;">📋 Next Steps</h4>
+            <ol style="margin: 10px 0; padding-left: 20px; color: #495057; font-size: 14px; line-height: 1.8;">
+              <li><strong>Verify the new address</strong> is within your delivery service area</li>
+              <li><strong>Check for any additional delivery fees</strong> based on the new location</li>
+              <li><strong>Contact the renter</strong> if you have any questions or concerns</li>
+              <li><strong>Proceed with delivery coordination</strong> once address is confirmed</li>
+            </ol>
+          </div>
+  
+          <!-- Call to Action Button -->
+          <div style="text-align: center; margin-top: 30px;">
+            <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/vendordashboard" 
+               style="display: inline-block; background-color: #0d6efd; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+              View Request Details
+            </a>
+          </div>
+  
+          <!-- Support -->
+          <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+            <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Help?</h4>
+            <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+              If you cannot service this delivery address or need to discuss alternative arrangements, please contact the renter directly or reach out to our support team.
+            </p>
+          </div>
+        </div>
+  
+        <!-- Footer -->
+        <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+          <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+            This is an automated notification from RentSimple
+          </p>
+          <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+            © 2025 RentSimple. All rights reserved.
+          </p>
+        </div>
+      </div>
+    `
+  };
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: 'rentsimple159@gmail.com', 
+        pass: 'upqbbmeobtztqxyg' 
+    }
+    });
+  
+  await transporter.sendMail(vendorUpdateMailOptions);
+return res.status(200).json({
+  message:"Delivery address updated successfully"
+})
+  }catch(e){
+    console.log(e.message)
+    return res.status(400).json({
+      error:"Error occured while trying to update delivery address"
+    })
+  }
+}

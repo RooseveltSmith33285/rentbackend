@@ -77,7 +77,7 @@ if (vendor && vendor.email) {
 
             <!-- Call to Action Button -->
             <div style="text-align: center; margin-top: 30px;">
-              <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/vendor/messages" 
+              <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/vendor/messages" 
                  style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
                 View & Reply to Message
               </a>

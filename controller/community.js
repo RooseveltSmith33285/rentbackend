@@ -367,3 +367,20 @@ exports.getFeed = async (req, res) => {
       });
     }
   };
+
+
+  module.exports.deletePost=async(req,res)=>{
+    let {id}=req.params;
+    try{
+await CommunityPost.findByIdAndDelete(id)
+
+return res.status(200).json({
+  message:"Post deleted sucessfully"
+})
+
+    }catch(e){
+      return res.status(400).json({
+        error:"Error occured while trying to delete post"
+      })
+    }
+  }

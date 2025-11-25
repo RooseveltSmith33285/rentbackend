@@ -34,6 +34,10 @@ const vendorSchema = new mongoose.Schema({
     zipCode: String,
     country: String
   },
+  sucessPopup:{
+type:Boolean,
+default:false
+  },
   subscription: {
     plan: {
       type: String,

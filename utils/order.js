@@ -199,7 +199,7 @@ async function sendAutoConfirmEmails(order) {
 
           <!-- Call to Action Button -->
           <div style="text-align: center; margin-top: 30px;">
-            <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/vendor/orders" 
+            <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/vendor/orders" 
                style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
               View My Orders
             </a>
@@ -337,7 +337,7 @@ async function sendAutoConfirmEmails(order) {
               We'd love to hear about your rental experience! Your feedback helps other customers and improves our service.
             </p>
             <div style="text-align: center; margin-top: 15px;">
-              <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/orders/${order._id}/review" 
+              <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/orders/${order._id}/review" 
                  style="display: inline-block; background-color: #ffc107; color: #000; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">
                 Leave a Review
               </a>
@@ -354,11 +354,11 @@ async function sendAutoConfirmEmails(order) {
 
           <!-- Call to Action Buttons -->
           <div style="text-align: center; margin-top: 30px;">
-            <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/browse" 
+            <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/browse" 
                style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 0 10px 10px 0;">
               Browse Products
             </a>
-            <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/dashboard/orders" 
+            <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/dashboard/orders" 
                style="display: inline-block; background-color: #6c757d; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 0 0 10px 10px;">
               View My Orders
             </a>

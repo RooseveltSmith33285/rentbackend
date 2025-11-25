@@ -97,18 +97,18 @@ exports.createListing = async (req, res) => {
       const mailOptions = {
         from: 'orders@enrichifydata.com',
         to: vendor.email, 
-        subject: 'Your Listing is Live on RentSimple! 🎉',
+        subject: 'Your Listing is Under Review - RentSimple',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
             <!-- Header -->
             <div style="background-color: #024a47; padding: 30px; text-align: center;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">🎉 Your Listing is Live!</h1>
-              <p style="color: #ecf0f1; margin-top: 10px; font-size: 16px;">Start earning with your rental listing</p>
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">📋 Listing Submitted for Review</h1>
+              <p style="color: #ecf0f1; margin-top: 10px; font-size: 16px;">We're reviewing your listing</p>
             </div>
             
             <!-- Listing Created Time -->
             <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
-              <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Listed On</p>
+              <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Submitted On</p>
               <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
                 dateStyle: 'full', 
                 timeStyle: 'short' 
@@ -119,10 +119,23 @@ exports.createListing = async (req, res) => {
             <div style="padding: 30px;">
               <!-- Welcome Message -->
               <div style="margin-bottom: 30px;">
-                <h3 style="color: #2c3e50; margin-top: 0;">Great job, ${vendor.name || 'there'}! 👋</h3>
+                <h3 style="color: #2c3e50; margin-top: 0;">Hi ${vendor.name || 'there'},</h3>
+                <p style="color: #495057; font-size: 15px; line-height: 1.6; margin: 0 0 15px 0;">
+                  Thanks for submitting your new listing to the RentSimple platform. We're excited to support you as you expand your inventory and drive additional revenue.
+                </p>
+                <p style="color: #495057; font-size: 15px; line-height: 1.6; margin: 0 0 15px 0;">
+                  Your listing is currently <strong>pending review</strong> as our team completes a quick quality and compliance check. This step helps ensure every item on the marketplace meets the standards our renters expect.
+                </p>
                 <p style="color: #495057; font-size: 15px; line-height: 1.6; margin: 0;">
-                  Your listing has been successfully created and is now ${publishToFeed && listAsActive ? 'live' : 'saved as a draft'} on RentSimple. 
-                  ${publishToFeed && listAsActive ? 'Customers can now discover and rent your product!' : 'You can publish it anytime from your dashboard.'}
+                  We'll notify you as soon as it's approved and live.
+                </p>
+              </div>
+      
+              <!-- Review Status Badge -->
+              <div style="margin-bottom: 30px; padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px; text-align: center;">
+                <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 18px;">⏳ Under Review</h4>
+                <p style="margin: 0; color: #856404; font-size: 14px; line-height: 1.6;">
+                  Our team is reviewing your listing. You'll receive an email once it's approved and live.
                 </p>
               </div>
       
@@ -165,19 +178,6 @@ exports.createListing = async (req, res) => {
                     <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Buy Price</td>
                     <td style="padding: 12px; border: 1px solid #dee2e6; color: #2c3e50; font-weight: 600; font-size: 16px;">$${buyPrice}</td>
                   </tr>
-                  <tr>
-                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Status</td>
-                    <td style="padding: 12px; border: 1px solid #dee2e6;">
-                      <span style="background-color: ${publishToFeed && listAsActive ? '#d4edda' : '#fff3cd'}; 
-                                   color: ${publishToFeed && listAsActive ? '#155724' : '#856404'}; 
-                                   padding: 4px 12px; 
-                                   border-radius: 12px; 
-                                   font-size: 13px; 
-                                   font-weight: 600;">
-                        ${publishToFeed && listAsActive ? '✓ Live & Active' : '📝 Draft'}
-                      </span>
-                    </td>
-                  </tr>
                   ${location ? `
                   <tr>
                     <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Location</td>
@@ -187,28 +187,10 @@ exports.createListing = async (req, res) => {
                 </table>
               </div>
       
-              ${publishToFeed && listAsActive ? `
-              <!-- Success Message -->
-              <div style="margin-bottom: 25px; padding: 20px; background-color: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;">
-                <h4 style="margin: 0 0 10px 0; color: #155724; font-size: 16px;">✓ Your Listing is Now Live!</h4>
-                <p style="margin: 0; color: #155724; font-size: 14px; line-height: 1.6;">
-                  Your product is now visible to customers on RentSimple. You'll receive notifications when someone sends a rental request.
-                </p>
-              </div>
-              ` : `
-              <!-- Draft Notice -->
-              <div style="margin-bottom: 25px; padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
-                <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 16px;">📝 Listing Saved as Draft</h4>
-                <p style="margin: 0; color: #856404; font-size: 14px; line-height: 1.6;">
-                  Your listing has been saved but is not yet visible to customers. You can review and publish it from your dashboard when ready.
-                </p>
-              </div>
-              `}
-      
-              <!-- Next Steps -->
+              <!-- What Happens Next -->
               <div style="margin-bottom: 25px;">
                 <h3 style="color: #2c3e50; border-bottom: 2px solid #024a47; padding-bottom: 10px;">
-                  🚀 What's Next?
+                  ⏰ What Happens Next?
                 </h3>
                 
                 <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 15px;">
@@ -216,9 +198,9 @@ exports.createListing = async (req, res) => {
                     <div style="display: flex; align-items: start; margin-bottom: 15px;">
                       <span style="background-color: #024a47; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">1</span>
                       <div>
-                        <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Monitor Your Listing</h4>
+                        <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Quality Check</h4>
                         <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
-                          Check your dashboard regularly for rental requests and customer inquiries.
+                          Our team reviews your listing for quality and compliance (typically 24-48 hours).
                         </p>
                       </div>
                     </div>
@@ -228,9 +210,9 @@ exports.createListing = async (req, res) => {
                     <div style="display: flex; align-items: start; margin-bottom: 15px;">
                       <span style="background-color: #024a47; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">2</span>
                       <div>
-                        <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Respond Quickly</h4>
+                        <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Approval Notification</h4>
                         <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
-                          Fast responses to rental requests increase your booking rate by up to 3x.
+                          You'll receive an email confirmation once your listing goes live.
                         </p>
                       </div>
                     </div>
@@ -240,9 +222,9 @@ exports.createListing = async (req, res) => {
                     <div style="display: flex; align-items: start;">
                       <span style="background-color: #024a47; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">3</span>
                       <div>
-                        <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Keep Listing Updated</h4>
+                        <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Start Earning</h4>
                         <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
-                          Update availability and pricing to maximize your rental income.
+                          Once approved, customers can discover and rent your product immediately.
                         </p>
                       </div>
                     </div>
@@ -250,31 +232,26 @@ exports.createListing = async (req, res) => {
                 </div>
               </div>
       
+              <!-- Need to Make Changes? -->
+              <div style="margin-top: 30px; padding: 20px; background-color: #e7f3f2; border-left: 4px solid #024a47; border-radius: 4px;">
+                <h4 style="margin: 0 0 10px 0; color: #024a47; font-size: 16px;">💬 Need to Make Changes?</h4>
+                <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                  If you have any updates or additional details you'd like to add, feel free to reply directly to this email.
+                </p>
+              </div>
+      
               <!-- Call to Action Button -->
               <div style="text-align: center; margin-top: 30px;">
-                <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/vendordashboard" 
+                <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/vendordashboard" 
                    style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
                   View Dashboard
                 </a>
               </div>
       
-              <!-- Tips Section -->
-              <div style="margin-top: 30px; padding: 20px; background-color: #e7f3f2; border-left: 4px solid #024a47; border-radius: 4px;">
-                <h4 style="margin: 0 0 10px 0; color: #024a47; font-size: 16px;">💡 Pro Tips to Get More Rentals</h4>
-                <ul style="margin: 10px 0; padding-left: 20px; color: #495057; font-size: 14px; line-height: 1.8;">
-                  <li>Respond to rental requests within 24 hours for higher conversion</li>
-                  <li>Add more photos from different angles to build trust</li>
-                  <li>Update your availability calendar regularly</li>
-                  <li>Offer flexible rental terms to attract more customers</li>
-                </ul>
-              </div>
-      
-              <!-- Customer Support -->
-              <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
-                <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Help?</h4>
-                <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
-                  Have questions about managing your listing or receiving rental payments? 
-                  Our support team is here to help you succeed.
+              <!-- Closing Message -->
+              <div style="margin-top: 30px; text-align: center;">
+                <p style="color: #495057; font-size: 15px; line-height: 1.6; margin: 0;">
+                  We appreciate your partnership and look forward to helping you grow on RentSimple.
                 </p>
               </div>
       
@@ -484,8 +461,8 @@ if (req.files && req.files.length > 0) {
         { new: true, runValidators: true }
       );
   
-      const vendor = await Vendor.findById(id);
-        
+      const vendor = await Vendor.findById(listing.vendor);
+    
       const mailOptions = {
         from: 'orders@enrichifydata.com',
         to: vendor.email, 
@@ -643,7 +620,7 @@ if (req.files && req.files.length > 0) {
       
               <!-- Call to Action Button -->
               <div style="text-align: center; margin-top: 30px;">
-                <a href="${process.env.FRONTEND_URL || 'https://rentsimple.com'}/vendordashboard" 
+                <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/vendordashboard" 
                    style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
                   View Dashboard
                 </a>
@@ -795,10 +772,11 @@ return res.status(200).json({
       const vendorId = req.user._id?req.user._id:req.user.id; 
       console.log(vendorId)
 
-      const vendor = await Vendor.findById(vendorId)
-      .select('-password')
-      .select('stripe_connect_status');
-    
+      const vendor = await Vendor.findById(vendorId).select({
+        stripe_connect_status: 1,
+        sucessPopup: 1,
+      });
+      
       
       if (!vendor) {
         return res.status(404).json({
@@ -890,7 +868,8 @@ return res.status(200).json({
             subscription: vendor.subscription,
             boostCredits: vendor.boostCredits,
             isVerified: vendor.isVerified,
-            stripe_connect_status:vendor.stripe_connect_status
+            stripe_connect_status:vendor.stripe_connect_status,
+            sucessPopup:vendor.sucessPopup
           },
           stats: {
             listings: listingStats,

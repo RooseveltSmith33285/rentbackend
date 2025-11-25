@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
 const {cloudinaryUploadImage}=require('../middleware/cloudinary')
-const {approveRequest,rejectRequest,checkStripeAccountStatus}=require('../controller/vendor')
+const {approveRequest,rejectRequest,changeVendorPassword,checkStripeAccountStatus}=require('../controller/vendor')
 const {sendMessage,getConversation,renewListing, generateStripeOnboardingLink ,getVendorRequests,getUser,seenMessages,getConversations,getMessages}=require('../controller/vendor')
 const fs = require('fs');
 const {
@@ -24,9 +24,8 @@ const {
   getFeed
 } = require('../controller/community');
 
-const {getVendorInfo}=require('../controller/vendor')
+const {getVendorInfo,getVendorProfile,updateVendorProfile}=require('../controller/vendor')
 
-const { getVendorProfile}=require('../controller/vendor')
 let upload=require('../middleware/upload')
 const {Auth}=require('../middleware/auth')
 
@@ -111,4 +110,8 @@ router.patch('/rejectRequest',rejectRequest)
 router.post('/renewListing',renewListing)
 router.post('/checkStripeAccountStatus',checkStripeAccountStatus)
 router.get('/generateStripeOnboardingLink',Auth,generateStripeOnboardingLink)
+router.put('/updateVendorProfile',Auth,updateVendorProfile)
+router.put('/changeVendorPassword',Auth,changeVendorPassword)
+
+
 module.exports = router;

@@ -1,5 +1,5 @@
 const router=require('express').Router();
-const {getUsers,updateUser,getRentals,adminsupportsendmessage,getCurrentAdmin,supportSendMessage,closeTicket,getUserTicket,supportmessageTickets,getAllTicketsForAdmins,markMessageAsRead,updateStatus,loginAdmin,updateVendor,deleteVendor,getVendors,resetAdmin,createAdmin,deleteUser,getDashboardData,pauseSubscription,getProducts,unPauseSubscription, updateProduct, getOrders}=require('../controller/admin')
+const {getUsers,updateUser,getRentals,adminsupportsendmessage,checkValidAdmin,getCurrentAdmin,supportSendMessage,closeTicket,getUserTicket,supportmessageTickets,getAllTicketsForAdmins,markMessageAsRead,updateStatus,loginAdmin,updateVendor,deleteVendor,getVendors,resetAdmin,createAdmin,deleteUser,getDashboardData,pauseSubscription,getProducts,unPauseSubscription, updateProduct, getOrders}=require('../controller/admin')
 let upload=require('../middleware/upload')
 const {Auth}=require('../middleware/auth')
 
@@ -30,4 +30,5 @@ router.get('/support/my-ticket', Auth,getUserTicket)
 
 
 router.get('/getCurrentAdmin',getCurrentAdmin)
+router.post('/admin/checkValidAdmin',checkValidAdmin)
 module.exports=router;
