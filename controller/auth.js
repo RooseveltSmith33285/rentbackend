@@ -252,7 +252,7 @@ module.exports.login = async (req, res) => {
             });
         }
 
-        let passwordMatch = await userModel.findOne({password:password});
+        let passwordMatch = await userModel.findOne({email,password:password});
        
         
         if (!passwordMatch) {
@@ -262,8 +262,10 @@ module.exports.login = async (req, res) => {
         }
 
         let userToken = jwt.sign({ _id: userFound._id, email: userFound.email }, process.env.JWT_KEY, {
-           
         });
+
+        console.log("USERFOUND")
+        console.log(userFound)
 
         return res.status(200).json({
             message: "User logged in successfully",

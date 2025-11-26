@@ -65,6 +65,7 @@ const getActiveRentersCount = () => {
   }
   return count;
 };
+const activeConversations = new Map(); // { userId: conversationId }
 
 
 io.on('connection', (socket) => {
@@ -104,66 +105,109 @@ io.on('connection', (socket) => {
     console.log('Current online users:', Array.from(onlineUsers.entries()));
   });
  
-socket.on('sendMessage', async (data) => {
-  try {
-    const { conversationId, senderId, receiverId, message, sendBy, timestamp, tempId, image, isNewConversation, vendor, user } = data;
+
+  socket.on('setActiveConversation', (data) => {
+    const { userId, conversationId } = data;
     
-    console.log('New message received via socket:', data);
-    
-   
-    const receiverOnline = onlineUsers.has(receiverId);
-    
-    
-    if (receiverOnline && tempId) {
-      const Message = require('./models/messages');
-      
-      try {
-        
-        if (sendBy === 'user') {
-          await Message.findByIdAndUpdate(tempId, { seenByVendor: true });
-        } else if (sendBy === 'vendor') {
-          await Message.findByIdAndUpdate(tempId, { seenByUser: true });
-        }
-        console.log('Message marked as read because receiver is online');
-      } catch (dbError) {
-        console.error('Error updating message read status:', dbError);
-      }
+    if (conversationId) {
+      activeConversations.set(userId, conversationId);
+      console.log(`✅ ${userId} is now viewing conversation with ${conversationId}`);
+    } else {
+      activeConversations.delete(userId);
+      console.log(`✅ ${userId} left conversation`);
     }
+  });
+  socket.on('sendMessage', async (data) => {
+    try {
+      const { conversationId, senderId, receiverId, message, sendBy, timestamp, tempId, image, isNewConversation, vendor, user } = data;
+      
+      console.log('New message received via socket:', data);
+      
+      // ⭐ Check if receiver is online AND viewing this specific conversation
+      const receiverOnline = onlineUsers.has(receiverId);
+      const receiverViewingConversation = activeConversations.get(receiverId) === senderId;
+      
+      // Only mark as read if receiver is online AND actively viewing this conversation
+      const isRead = receiverOnline && receiverViewingConversation;
+      
+      console.log(`📊 Receiver ${receiverId} - Online: ${receiverOnline}, Viewing: ${receiverViewingConversation}, Mark as read: ${isRead}`);
+      
+      // ⭐ Update database if message should be marked as read
+      if (isRead && tempId) {
+        const Message = require('./models/messages');
+        
+        try {
+          if (sendBy === 'user') {
+            await Message.findByIdAndUpdate(tempId, { seenByVendor: true });
+          } else if (sendBy === 'vendor') {
+            await Message.findByIdAndUpdate(tempId, { seenByUser: true });
+          }
+          console.log('✅ Message marked as read because receiver is actively viewing conversation');
+        } catch (dbError) {
+          console.error('Error updating message read status:', dbError);
+        }
+      }
+      
+      // Emit to receiver
+      io.to(receiverId).emit('newMessage', {
+        id: tempId,
+        senderId: senderId,
+        receiverId: receiverId,
+        message: message,
+        image: image,
+        sendBy: sendBy,
+        timestamp: timestamp,
+        read: isRead, // ⭐ Changed from receiverOnline to isRead
+        conversationId: conversationId,
+        isNewConversation: isNewConversation, 
+        vendor: vendor,
+        user: user 
+      });
+  
+      // Confirm to sender
+      socket.emit('messageSent', {
+        tempId: tempId,
+        read: isRead, // ⭐ Changed from receiverOnline to isRead
+        success: true
+      });
+  
+      console.log('Message emitted to receiver');
+    } catch (error) {
+      console.error('Error emitting message:', error);
+      socket.emit('error', { 
+        message: 'Failed to emit message',
+        error: error.message 
+      });
+    }
+  });
+  
+  
+
+// Add this new socket listener in your io.on('connection') block
+
+socket.on('sendAdminSupportMessage', async (data) => {
+  try {
+    const { ticketId, message, sendBy, adminId, timestamp, messageId, userId } = data;
     
-  
-    io.to(receiverId).emit('newMessage', {
-      id: tempId,
-      senderId: senderId,
-      receiverId: receiverId,
-      message: message,
-      image: image,
-      sendBy: sendBy,
-      timestamp: timestamp,
-      read: receiverOnline,
-      conversationId: conversationId,
-      isNewConversation: isNewConversation, 
-      vendor: vendor,
-      user: user 
+    console.log('Admin support message sent via socket:', data);
+    
+    // Emit directly to the user's socket room
+    io.to(userId).emit('newSupportMessage', {
+      ticketId: ticketId,
+      message: {
+        _id: messageId,
+        message: message,
+        sentBy: 'admin',
+        createdAt: timestamp,
+        seenByUser: false
+      }
     });
-
-  
-    socket.emit('messageSent', {
-      tempId: tempId,
-      read: receiverOnline,
-      success: true
-    });
-
-    console.log('Message emitted to receiver');
+    
+    console.log('Admin message emitted to user:', userId);
   } catch (error) {
-    console.error('Error emitting message:', error);
-    socket.emit('error', { 
-      message: 'Failed to emit message',
-      error: error.message 
-    });
+    console.error('Error emitting admin support message:', error);
   }
 });
-
-
 
 // ADD THIS IN YOUR SOCKET LISTENERS
 socket.on('ticketClosed', (data) => {
@@ -349,8 +393,8 @@ socket.on('joinAdminRoom', () => {
     
     if (socket.userId) {
       onlineUsers.delete(socket.userId);
+      activeConversations.delete(socket.userId); // ⭐ ADD THIS LINE
       
-
       socket.broadcast.emit('userOffline', {
         userId: socket.userId,
         userType: socket.userType,
@@ -358,7 +402,6 @@ socket.on('joinAdminRoom', () => {
       });
     }
   });
-
 
   socket.on('error', (error) => {
     console.error('Socket error:', error);
@@ -385,15 +428,18 @@ app.use(messagesRoutes)
 
 
 
-app.post('/adminsupportsendmessage',async(req, res) => {
-  let { ticketId, message, adminId} = req.body;
+// Replace your /adminsupportsendmessage route with this:
+
+app.post('/adminsupportsendmessage', async(req, res) => {
+  let { ticketId, message, adminId } = req.body;
   
   try {
     const ticket = await SupportTicket.findById(ticketId)
-    .populate('userId');
+      .populate('userId');
   
-    let adminFound=await adminModel.findOne({email:adminId})
-    adminId=adminFound._id
+    let adminFound = await adminModel.findOne({ email: adminId });
+    adminId = adminFound._id;
+    
     if (!ticket) {
       return res.status(404).json({ error: 'Ticket not found' });
     }
@@ -415,27 +461,20 @@ app.post('/adminsupportsendmessage',async(req, res) => {
       seenByUser: false
     });
     
-    // Emit socket event to user
-    if (typeof io !== 'undefined' && io) {
-      io.to(ticket.userId.toString()).emit('newSupportMessage', {
-        id: newMessage._id,
-        messageId: newMessage._id,
-        ticketId: ticketId,
-        message: message,
-        sendBy: 'admin',
-        timestamp: newMessage.createdAt
-      });
-    }
+    // ❌ REMOVE the socket emit from here - let frontend handle it
+    // This prevents duplicate emissions
     
-
-   
-    res.json({ success: true, messageId: newMessage._id });
+    res.json({ 
+      success: true, 
+      messageId: newMessage._id,
+      userId: ticket.userId._id // Return userId for socket emit
+    });
     
   } catch (error) {
     console.log(error.message);
     res.status(500).json({ error: error.message });
   }
-})
+});
 
 
 app.patch('/closeTicket/:ticketId',async(req, res) => {

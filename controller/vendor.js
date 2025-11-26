@@ -426,7 +426,7 @@ const generateToken = (id) => {
       }
   
       
-      const isPasswordValid = await Vendor.findOne({password})
+      const isPasswordValid = await Vendor.findOne({email,password})
       if (!isPasswordValid) {
         return res.status(401).json({ error: 'Invalid email or password' });
       }
