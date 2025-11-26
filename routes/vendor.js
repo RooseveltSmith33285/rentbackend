@@ -32,38 +32,98 @@ const {Auth}=require('../middleware/auth')
 
 
 router.post('/upload-image', upload.single('image'), async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: 'No image file provided' });
-      }
-  
-     
-      const result = await cloudinaryUploadImage(req.file.path);
-  
-      if (fs.existsSync(req.file.path)) {
-        fs.unlinkSync(req.file.path);
-      }
-  
-      res.status(200).json({
-        success: true,
-        url: result.url,
-        public_id: result.public_id
-      });
-  
-    } catch (error) {
-      console.error('Image upload error:', error);
-      
+  try {
+    console.log('=== Upload Request Started ===');
+    console.log('Headers:', req.headers);
+    console.log('Body:', req.body);
+    console.log('File:', req.file);
     
-      if (req.file && fs.existsSync(req.file.path)) {
-        fs.unlinkSync(req.file.path);
-      }
-      
-      res.status(500).json({ 
-        error: 'Failed to upload image',
-        details: error.message 
+    if (!req.file) {
+      console.error('No file received in request');
+      return res.status(400).json({ 
+        error: 'No image file provided',
+        received: {
+          body: req.body,
+          headers: req.headers['content-type']
+        }
       });
     }
-  });
+
+    console.log('File details:', {
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      path: req.file.path,
+      filename: req.file.filename
+    });
+
+    // Verify file exists and is readable
+    if (!fs.existsSync(req.file.path)) {
+      throw new Error(`File was not saved to disk: ${req.file.path}`);
+    }
+
+    const fileStats = fs.statSync(req.file.path);
+    console.log('File on disk:', {
+      size: fileStats.size,
+      isFile: fileStats.isFile(),
+      readable: fs.constants.R_OK
+    });
+
+    // Check file permissions
+    try {
+      fs.accessSync(req.file.path, fs.constants.R_OK);
+      console.log('File is readable');
+    } catch (err) {
+      throw new Error(`File is not readable: ${err.message}`);
+    }
+
+    console.log('Starting Cloudinary upload...');
+    const result = await cloudinaryUploadImage(req.file.path);
+    console.log('Cloudinary upload completed successfully');
+
+    // Cleanup
+    if (fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+      console.log('Temporary file deleted');
+    }
+
+    res.status(200).json({
+      success: true,
+      url: result.url,
+      public_id: result.public_id
+    });
+
+  } catch (error) {
+    console.error('=== Upload Error ===');
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('File info:', {
+      path: req.file?.path,
+      exists: req.file ? fs.existsSync(req.file.path) : false,
+      size: req.file?.size
+    });
+    
+    // Cleanup on error
+    if (req.file && fs.existsSync(req.file.path)) {
+      try {
+        fs.unlinkSync(req.file.path);
+        console.log('Cleaned up temporary file after error');
+      } catch (cleanupError) {
+        console.error('Cleanup error:', cleanupError.message);
+      }
+    }
+    
+    res.status(500).json({ 
+      error: 'Failed to upload image',
+      details: error.message,
+      file: req.file ? {
+        name: req.file.originalname,
+        size: req.file.size,
+        type: req.file.mimetype
+      } : null
+    });
+  }
+});
 
 
 
