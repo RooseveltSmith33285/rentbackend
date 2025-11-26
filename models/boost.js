@@ -6,6 +6,8 @@ const boostSchema = new mongoose.Schema({
     ref: 'Vendor',
     required: true
   },
+  currentViews: { type: Number, default: 0 }, 
+    isReachComplete: { type: Boolean, default: false },
   listing: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Listing',
@@ -45,6 +47,7 @@ type:Number
     initialLikes: Number,
     currentLikes: Number
   },
+  
   paymentId: String
 }, {
   timestamps: true

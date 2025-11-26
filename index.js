@@ -40,6 +40,7 @@ const messagesRoutes=require('./routes/messages')
 const {handleStripeConnectWebhook}=require('./controller/payment')
 const orderCron=require('./utils/order');
 const adminModel = require('./models/admin');
+const Listing = require('./models/listing');
 require('dotenv').config();
 app.use(cors())
 
@@ -429,6 +430,36 @@ app.use(messagesRoutes)
 
 
 // Replace your /adminsupportsendmessage route with this:
+
+// Add this to your routes temporarily
+
+const fixBoostIssue = async(req, res) => {
+  try {
+      const result = await Listing.findByIdAndUpdate(
+          '6926c09a4181874a7964a84b',
+          {
+              'visibility.isBoosted': false,
+              'visibility.boostAmount': 0,
+              'visibility.boostEndDate': null,
+              'visibility.est_react': 0
+          },
+          { new: true }
+      );
+      
+      return res.status(200).json({ 
+          success: true, 
+          message: 'Listing updated',
+          listing: result
+      });
+  } catch(e) {
+      console.log(e.message);
+      return res.status(500).json({ error: e.message });
+  }
+}
+
+
+app.get('/fixboostissue',fixBoostIssue)
+
 
 app.post('/adminsupportsendmessage', async(req, res) => {
   let { ticketId, message, adminId } = req.body;
