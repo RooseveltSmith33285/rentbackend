@@ -179,10 +179,10 @@ exports.createListing = async (req, res) => {
                     <td style="padding: 12px; border: 1px solid #dee2e6; color: #2c3e50; font-weight: 600; font-size: 16px;">$${buyPrice}</td>
                   </tr>
                   ${location ? `
-                  <tr>
-                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Location</td>
-                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${location}</td>
-                  </tr>
+                 <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">
+  ${location.street}, ${location.city}, ${location.state}, ${location.zipCode}, ${location.country}
+</td>
+
                   ` : ''}
                 </table>
               </div>

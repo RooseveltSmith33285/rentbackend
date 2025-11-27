@@ -89,6 +89,7 @@ const generateToken = (id) => {
         password: password,
         businessName: businessName || '',
         stripe_account_id: stripeAccountId,
+        status:'inactive'
        
       });
   
@@ -425,7 +426,9 @@ const generateToken = (id) => {
         return res.status(403).json({ error: 'Account is deactivated. Contact support.' });
       }
   
-      
+      if(vendor.status=="inactive"){
+        return res.status(403).json({ error: "Account is checked by admin for verification." });
+      }
       const isPasswordValid = await Vendor.findOne({email,password})
       if (!isPasswordValid) {
         return res.status(401).json({ error: 'Invalid email or password' });

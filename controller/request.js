@@ -5,10 +5,18 @@ const strikeModel = require("../models/strike");
 const userModel=require('../models/user')
 const Vendor=require('../models/vendor')
 const nodemailer=require('nodemailer')
+
+const formatAddress = (addr) =>
+  addr
+    ? `${addr.street || ''}, ${addr.city || ''}, ${addr.state || ''}, ${addr.zipCode || ''}, ${addr.country || ''}`
+        .replace(/,\s*,/g, ', ')    
+        .replace(/^,|,$/g, '')     
+    : '';
 exports.sendRequestUser=async(req,res)=>{
-  let {listing,vendor,deliveryType,deliveryAddress,installationType}=req.body;
+  let {listing,vendor,deliveryType,pickUpAddress,deliveryAddress,installationType}=req.body;
   console.log(listing)
   console.log(vendor)
+  
 try{
 const newRequest = await requestModel.create({
   listing,
@@ -16,7 +24,8 @@ const newRequest = await requestModel.create({
   user:req.user._id,
   deliveryType,
   installationType,
-  deliveryAddress
+  deliveryAddress,
+  pickUpAddress
 })
 
 // Populate the request with listing and user details
@@ -126,6 +135,29 @@ html: `
             <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Email</td>
             <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${populatedRequest.user.email}</td>
           </tr>
+          
+          ${populatedRequest?.deliveryAddress?.street?.length > 0 ? `
+            <tr>
+              <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Delivery Address</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">
+                ${formatAddress(populatedRequest.deliveryAddress)}
+              </td>
+            </tr>
+          ` : ''}
+          
+
+          ${populatedRequest?.pickUpAddress ? `
+            <tr>
+              <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Preferred Pickup Address</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">
+                ${populatedRequest.pickUpAddress}
+                <div style="margin-top: 8px; padding: 8px; background-color: #fff3cd; border-left: 3px solid #ffc107; font-size: 13px; color: #856404;">
+                  <strong>Note:</strong> Customer has requested pickup from this address. Please confirm availability or suggest an alternative.
+                </div>
+              </td>
+            </tr>
+          ` : ''}
+
           ${populatedRequest.user.phone ? `
           <tr>
             <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Phone</td>

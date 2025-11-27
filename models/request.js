@@ -58,6 +58,10 @@ ref:'Listing'
         zipCode: String,
         country: String
     },
+
+    pickUpAddress:{
+        type:String
+    }
 },{timestamps:true})
 
 
