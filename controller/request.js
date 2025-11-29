@@ -517,7 +517,6 @@ return res.status(200).json({
 
 module.exports.rejectOffer = async(req, res) => {
   let {id} = req.params;
-console.log(id)
   const {rejectionReason}=req.body;
   try {
  
@@ -531,7 +530,7 @@ console.log(id)
               error: "Request not found"
           });
       }
-      console.log("YUP THIS IS IT")
+    
       // Update the request status
       const lastRequest = await requestModel
       .findOne({ listing: id.toString() })
@@ -548,6 +547,11 @@ console.log(id)
       }
     );
     
+    await listing.updateOne({_id:id},{
+      $set:{
+        status:'inactive'
+      }
+    })
   
       
       // Send email to vendor

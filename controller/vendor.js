@@ -1599,3 +1599,29 @@ let id=req?.user?._id?req?.user?._id:req.user.id
     return res.status(500).json({ success: false, error: error.message });
   }
 }
+
+
+
+
+module.exports.getActiveRentals=async(req,res)=>{
+  try{
+    let id=req?.user?._id?req?.user?._id:req.user.id
+   
+    let requests=await requestModel.find({
+      vendor: id,
+      status: { $in: ['confirmed', 'pending_confirmation'] }
+    })
+      .populate('listing')
+      .populate('user')
+    
+
+return res.status(200).json({
+  requests
+})
+  }catch(e){
+    console.log(e.message)
+    return res.status(400).json({
+      error:"Error occured while trying to get active rentals"
+    })
+  }
+}

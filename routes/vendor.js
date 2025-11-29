@@ -24,7 +24,7 @@ const {
   getFeed
 } = require('../controller/community');
 
-const {getVendorInfo,getVendorProfile,updateVendorProfile}=require('../controller/vendor')
+const {getVendorInfo,getVendorProfile,updateVendorProfile,getActiveRentals}=require('../controller/vendor')
 
 let upload=require('../middleware/upload')
 const {Auth}=require('../middleware/auth')
@@ -112,6 +112,9 @@ router.post('/checkStripeAccountStatus',checkStripeAccountStatus)
 router.get('/generateStripeOnboardingLink',Auth,generateStripeOnboardingLink)
 router.put('/updateVendorProfile',Auth,updateVendorProfile)
 router.put('/changeVendorPassword',Auth,changeVendorPassword)
+
+
+router.get('/getActiveRentals',Auth,getActiveRentals)
 
 
 module.exports = router;
