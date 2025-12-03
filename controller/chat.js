@@ -207,3 +207,22 @@ module.exports.seenMessages=async(req,res)=>{
       })
     }
   }
+
+  module.exports.unSeenMessagesLength = async (req, res) => {
+    let id = req?.user?._id || req.user.id;
+  
+    try {
+      const messagesLength = await messageModel.countDocuments({
+        user: id,
+        seenByUser: false
+      });
+  
+      return res.status(200).json({ messagesLength });
+    } catch (e) {
+      console.log(e.message);
+      return res.status(400).json({
+        error: "Error while trying to get messages length"
+      });
+    }
+  };
+  

@@ -427,7 +427,7 @@ const generateToken = (id) => {
       }
   
       if(vendor.status=="inactive"){
-        return res.status(403).json({ error: "Account is checked by admin for verification." });
+        return res.status(403).json({ error: "Our admin team is reviewing your account. Once it’s approved, you’ll be notified." });
       }
       const isPasswordValid = await Vendor.findOne({email,password})
       if (!isPasswordValid) {
