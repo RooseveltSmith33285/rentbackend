@@ -1625,3 +1625,23 @@ return res.status(200).json({
     })
   }
 }
+
+module.exports.updateDeliveryAddress=async(req,res)=>{
+  let {id,deliveryAddress}=req.body;
+  try{
+await requestModel.findByIdAndUpdate(id,{
+  $set:{
+    deliveryAddress
+  }
+})
+
+return res.status(200).json({
+  message:"Address updated sucessfully"
+})
+  }catch(e){
+    console.log(e.message)
+    return res.status(400).json({
+      error:"Error occured while trying to update delivery address"
+    })
+  }
+}

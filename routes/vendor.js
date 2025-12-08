@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
 const {cloudinaryUploadImage}=require('../middleware/cloudinary')
-const {approveRequest,rejectRequest,changeVendorPassword,checkStripeAccountStatus}=require('../controller/vendor')
+const {approveRequest,rejectRequest,changeVendorPassword,checkStripeAccountStatus,updateDeliveryAddress}=require('../controller/vendor')
 const {sendMessage,getConversation,renewListing, generateStripeOnboardingLink ,getVendorRequests,getUser,seenMessages,getConversations,getMessages}=require('../controller/vendor')
 const fs = require('fs');
 const {
@@ -115,6 +115,6 @@ router.put('/changeVendorPassword',Auth,changeVendorPassword)
 
 
 router.get('/getActiveRentals',Auth,getActiveRentals)
-
+router.patch('/updateDeliveryAddress',updateDeliveryAddress)
 
 module.exports = router;

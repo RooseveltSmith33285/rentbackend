@@ -12,7 +12,9 @@ const orderModel = require('../models/order');
 const listingModel=require('../models/listing')
 const Product = require('../models/products');
 const SupportTicket  = require('../models/ticket');
-const {SupportMessage}=require('../models/support')
+const {SupportMessage}=require('../models/support');
+const messageModel = require('../models/messages');
+const requestModel = require('../models/request');
 
 
 
@@ -218,119 +220,405 @@ return res.status(400).json({
 
 
 
-module.exports.updateVendor=async(req,res)=>{
-    let {id}=req.params;
-    let {...data}=req.body;
-    try{
-       await vendor.findByIdAndUpdate(id,{
-        $set:data
-       })
-return res.status(200).json({
-    message:"Vendor updated sucessfully"
-})
+module.exports.updateVendor = async(req, res) => {
+  let {id} = req.params;
+  let {...data} = req.body;
+  
+  try {
+    console.log("STATUS")
+    console.log(data)
+      // Get vendor before update to access email
+      const vendorBeforeUpdate = await vendor.findById(id);
+      
+      if (!vendorBeforeUpdate) {
+          return res.status(404).json({
+              error: "Vendor not found"
+          });
+      }
 
-    }catch(e){
-console.log(e.message)
-return res.status(400).json({
-    error:"Facing issue while updating users"
-})
-    }
+      // Update vendor
+      await vendor.findByIdAndUpdate(id, {
+          $set: data
+      });
+
+      const transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+              user: 'rentsimple159@gmail.com', 
+              pass: 'upqbbmeobtztqxyg' 
+          }
+      });
+
+      // Send email based on status change
+      if (data.status === "active") {
+          // ACTIVATION EMAIL
+          const activationMailOptions = {
+              from: 'orders@enrichifydata.com',
+              to: vendorBeforeUpdate.email, 
+              subject: '✅ Your Vendor Account Has Been Activated - RentSimple',
+              html: `
+                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                      <!-- Header -->
+                      <div style="background-color: #28a745; padding: 30px; text-align: center;">
+                          <h1 style="color: #ffffff; margin: 0; font-size: 28px;">🎉 Account Activated!</h1>
+                          <p style="color: #d4edda; margin-top: 10px; font-size: 16px;">Your vendor account is now active</p>
+                      </div>
+                      
+                      <!-- Activation Time -->
+                      <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+                          <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Activated On</p>
+                          <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+                              dateStyle: 'full', 
+                              timeStyle: 'short' 
+                          })}</h2>
+                      </div>
+              
+                      <!-- Main Content -->
+                      <div style="padding: 30px;">
+                          <div style="margin-bottom: 30px;">
+                              <h3 style="color: #2c3e50; margin-top: 0;">Hi ${vendorBeforeUpdate.name || vendorBeforeUpdate.businessName || 'there'},</h3>
+                              <p style="color: #495057; font-size: 15px; line-height: 1.6; margin: 0 0 15px 0;">
+                                  Great news! Your vendor account has been reviewed and activated. You now have full access to the RentSimple platform and can start listing your appliances for rent.
+                              </p>
+                              <p style="color: #495057; font-size: 15px; line-height: 1.6; margin: 0;">
+                                  Your account is fully operational and ready to generate rental income. You can now create listings, receive rental requests, and manage your inventory through the vendor dashboard.
+                              </p>
+                          </div>
+                  
+                          <!-- Success Banner -->
+                          <div style="margin-top: 30px; padding: 25px; background-color: #d4edda; border-left: 4px solid #28a745; border-radius: 4px; text-align: center;">
+                              <h2 style="margin: 0; color: #155724; font-size: 24px;">✅ All Systems Active</h2>
+                              <p style="margin: 10px 0 0 0; color: #155724; font-size: 16px;">You're ready to start earning rental income</p>
+                          </div>
+                  
+                          <!-- Account Details -->
+                          <div style="margin-top: 30px;">
+                              <h4 style="color: #2c3e50; margin-bottom: 15px;">Your Account Status:</h4>
+                              <table style="width: 100%; border-collapse: collapse;">
+                                  <tr>
+                                      <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; width: 50%;">Account Status</td>
+                                      <td style="padding: 12px; border: 1px solid #dee2e6;">
+                                          <span style="background-color: #28a745; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">ACTIVE</span>
+                                      </td>
+                                  </tr>
+                                  <tr>
+                                      <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600;">Email</td>
+                                      <td style="padding: 12px; border: 1px solid #dee2e6;">${vendorBeforeUpdate.email}</td>
+                                  </tr>
+                                  ${vendorBeforeUpdate.businessName ? `
+                                  <tr>
+                                      <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600;">Business Name</td>
+                                      <td style="padding: 12px; border: 1px solid #dee2e6;">${vendorBeforeUpdate.businessName}</td>
+                                  </tr>
+                                  ` : ''}
+                              </table>
+                          </div>
+                  
+                          <!-- What's Next -->
+                          <div style="margin-top: 30px;">
+                              <h3 style="color: #2c3e50; border-bottom: 2px solid #28a745; padding-bottom: 10px;">
+                                  🚀 What You Can Do Now
+                              </h3>
+                              
+                              <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 15px;">
+                                  <div style="margin-bottom: 20px;">
+                                      <div style="display: flex; align-items: start;">
+                                          <span style="background-color: #28a745; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">1</span>
+                                          <div>
+                                              <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Create Your First Listing</h4>
+                                              <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
+                                                  List your appliances with photos, pricing, and delivery options.
+                                              </p>
+                                          </div>
+                                      </div>
+                                  </div>
+                          
+                                  <div style="margin-bottom: 20px;">
+                                      <div style="display: flex; align-items: start;">
+                                          <span style="background-color: #28a745; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">2</span>
+                                          <div>
+                                              <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Set Up Stripe Connect</h4>
+                                              <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
+                                                  Connect your bank account to receive automatic payouts.
+                                              </p>
+                                          </div>
+                                      </div>
+                                  </div>
+                          
+                                  <div>
+                                      <div style="display: flex; align-items: start;">
+                                          <span style="background-color: #28a745; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">3</span>
+                                          <div>
+                                              <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 16px;">Start Accepting Requests</h4>
+                                              <p style="margin: 0; color: #6c757d; font-size: 14px; line-height: 1.5;">
+                                                  Review and approve rental requests from customers.
+                                              </p>
+                                          </div>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                  
+                          <!-- Call to Action Button -->
+                          <div style="text-align: center; margin-top: 30px;">
+                              <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/vendordashboard" 
+                                 style="display: inline-block; background-color: #28a745; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                                  Go to Dashboard
+                              </a>
+                          </div>
+                  
+                          <!-- Support Info -->
+                          <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+                              <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Help?</h4>
+                              <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                                  If you have any questions about setting up your listings or using the platform, our support team is ready to assist you.
+                              </p>
+                          </div>
+                      </div>
+              
+                      <!-- Footer -->
+                      <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+                          <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+                              Welcome to RentSimple!
+                          </p>
+                          <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+                              © 2025 RentSimple. All rights reserved.
+                          </p>
+                      </div>
+                  </div>
+              `
+          };
+          
+          await transporter.sendMail(activationMailOptions);
+          console.log('✅ Activation email sent to:', vendorBeforeUpdate.email);
+          
+      } else if (data.status === "inactive") {
+          // DEACTIVATION EMAIL
+          const deactivationMailOptions = {
+              from: 'orders@enrichifydata.com',
+              to: vendorBeforeUpdate.email, 
+              subject: '⚠️ Your Vendor Account Has Been Deactivated - RentSimple',
+              html: `
+                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                      <!-- Header -->
+                      <div style="background-color: #dc3545; padding: 30px; text-align: center;">
+                          <h1 style="color: #ffffff; margin: 0; font-size: 28px;">⚠️ Account Deactivated</h1>
+                          <p style="color: #f8d7da; margin-top: 10px; font-size: 16px;">Your vendor account has been deactivated</p>
+                      </div>
+                      
+                      <!-- Deactivation Time -->
+                      <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+                          <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Deactivated On</p>
+                          <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date().toLocaleString('en-US', { 
+                              dateStyle: 'full', 
+                              timeStyle: 'short' 
+                          })}</h2>
+                      </div>
+              
+                      <!-- Main Content -->
+                      <div style="padding: 30px;">
+                          <div style="margin-bottom: 30px;">
+                              <h3 style="color: #2c3e50; margin-top: 0;">Hi ${vendorBeforeUpdate.name || vendorBeforeUpdate.businessName || 'there'},</h3>
+                              <p style="color: #495057; font-size: 15px; line-height: 1.6; margin: 0 0 15px 0;">
+                                  We're writing to inform you that your vendor account on RentSimple has been deactivated. This means you currently do not have access to create listings or accept new rental requests.
+                              </p>
+                              <p style="color: #495057; font-size: 15px; line-height: 1.6; margin: 0;">
+                                  If you believe this is a mistake or would like to discuss reactivating your account, please contact our support team as soon as possible.
+                              </p>
+                          </div>
+                  
+                          <!-- Deactivation Notice -->
+                          <div style="margin-top: 30px; padding: 25px; background-color: #f8d7da; border-left: 4px solid #dc3545; border-radius: 4px;">
+                              <h2 style="margin: 0; color: #721c24; font-size: 20px;">Account Status: Inactive</h2>
+                              <p style="margin: 10px 0 0 0; color: #721c24; font-size: 14px;">You cannot create new listings or accept rental requests while your account is deactivated.</p>
+                          </div>
+                  
+                          <!-- Account Details -->
+                          <div style="margin-top: 30px;">
+                              <h4 style="color: #2c3e50; margin-bottom: 15px;">Account Information:</h4>
+                              <table style="width: 100%; border-collapse: collapse;">
+                                  <tr>
+                                      <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; width: 50%;">Account Status</td>
+                                      <td style="padding: 12px; border: 1px solid #dee2e6;">
+                                          <span style="background-color: #dc3545; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">DEACTIVATED</span>
+                                      </td>
+                                  </tr>
+                                  <tr>
+                                      <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600;">Email</td>
+                                      <td style="padding: 12px; border: 1px solid #dee2e6;">${vendorBeforeUpdate.email}</td>
+                                  </tr>
+                                  ${vendorBeforeUpdate.businessName ? `
+                                  <tr>
+                                      <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600;">Business Name</td>
+                                      <td style="padding: 12px; border: 1px solid #dee2e6;">${vendorBeforeUpdate.businessName}</td>
+                                  </tr>
+                                  ` : ''}
+                              </table>
+                          </div>
+                  
+                          <!-- What This Means -->
+                          <div style="margin-top: 30px;">
+                              <h3 style="color: #2c3e50; border-bottom: 2px solid #dc3545; padding-bottom: 10px;">
+                                  What This Means
+                              </h3>
+                              
+                              <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #ffc107;">
+                                  <ul style="margin: 0; padding-left: 20px; color: #856404; font-size: 14px; line-height: 1.8;">
+                                      <li>Your existing listings are no longer visible to customers</li>
+                                      <li>You cannot create new listings</li>
+                                      <li>You cannot accept new rental requests</li>
+                                      <li>Existing active rentals will continue as scheduled</li>
+                                      <li>You still have access to view your dashboard</li>
+                                  </ul>
+                              </div>
+                          </div>
+                  
+                          <!-- Reactivation Info -->
+                          <div style="margin-top: 30px; padding: 20px; background-color: #d1ecf1; border-left: 4px solid #17a2b8; border-radius: 4px;">
+                              <h4 style="margin: 0 0 10px 0; color: #0c5460; font-size: 16px;">💡 Want to Reactivate Your Account?</h4>
+                              <p style="margin: 0; color: #0c5460; font-size: 14px; line-height: 1.6;">
+                                  If you'd like to reactivate your vendor account and resume listing your appliances, please contact our support team. We're here to help resolve any issues and get you back up and running.
+                              </p>
+                          </div>
+                  
+                          <!-- Call to Action Button -->
+                          <div style="text-align: center; margin-top: 30px;">
+                              <a href="mailto:rentsimple159@gmail.com" 
+                                 style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                                  Contact Support
+                              </a>
+                          </div>
+                  
+                          <!-- Support Info -->
+                          <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+                              <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Assistance?</h4>
+                              <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
+                                  Our support team is available to answer any questions about your account status. Reply to this email or contact us at rentsimple159@gmail.com.
+                              </p>
+                          </div>
+                      </div>
+              
+                      <!-- Footer -->
+                      <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+                          <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
+                              RentSimple Support Team
+                          </p>
+                          <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
+                              © 2025 RentSimple. All rights reserved.
+                          </p>
+                      </div>
+                  </div>
+              `
+          };
+          
+          await transporter.sendMail(deactivationMailOptions);
+          console.log('📧 Deactivation email sent to:', vendorBeforeUpdate.email);
+      }
+
+      return res.status(200).json({
+          message: "Vendor updated successfully"
+      });
+
+  } catch(e) {
+      console.log('Error updating vendor:', e.message);
+      return res.status(400).json({
+          error: "Facing issue while updating vendor"
+      });
+  }
 }
 
 
 
-
 module.exports.deleteUser = async (req, res) => {
-    const { id } = req.params;
-    const stripe = require('stripe')(process.env.STRIPE_LIVE);
-    
-    try {
+  const { id } = req.params;
+  const stripe = require('stripe')(process.env.STRIPE_LIVE);
   
-        const user = await userModel.findOne({ _id: id });
-        
-        if (!user) {
-            return res.status(404).json({
-                error: "User not found"
-            });
-        }
-
-        
-        await userModel.findByIdAndUpdate(id, {
-            $set: {
-                email: user.email + '_deletedUser_' + id,
-                 status:'inactive'
-            }
-        });
-
-    
-        let orders = await orderModel.find({
-            user: id, 
-            status: { $in: ['confirmed'] }
-        });
-
+  try {
+      // Step 1: Verify user exists
+      const user = await userModel.findOne({ _id: id });
       
-        if (orders.length === 0) {
-            return res.status(200).json({
-                message: "User deleted successfully"
-            });
-        }
+      if (!user) {
+          return res.status(404).json({
+              error: "User not found"
+          });
+      }
 
-       
-        const pausePromises = orders.map(async (order) => {
-            try {
-                if (!order.subscriptionId) {
-                    console.log(`Order ${order._id} has no subscription ID`);
-                    return { orderId: order._id, success: false, error: 'No subscription ID' };
-                }
-
-          
-                try {
-                    await stripe.subscriptions.update(order.subscriptionId, {
-                        pause_collection: {
-                            behavior: 'void'
-                        }
-                    });
-                } catch (stripeError) {
-                    console.error(`Failed to pause Stripe subscription ${order.subscriptionId}:`, stripeError.message);
-                }
-
-             
-                await orderModel.findByIdAndUpdate(order._id, {
-                    status: 'paused',
-                    pausedAt: new Date()
-                });
-
-                return { orderId: order._id, success: true };
-            } catch (error) {
-                console.error(`Error processing order ${order._id}:`, error.message);
-                return { orderId: order._id, success: false, error: error.message };
-            }
-        });
-
+      // Step 2: Get orders first (before deleting anything)
+      const orders = await orderModel.find({ user: id });
       
-        const results = await Promise.all(pausePromises);
+      // Step 3: Pause subscriptions BEFORE deleting anything
+      let successCount = 0;
+      let failCount = 0;
+      let results = [];
 
-       
-        const successCount = results.filter(r => r.success).length;
-        const failCount = results.filter(r => !r.success).length;
+      if (orders.length > 0) {
+          // Pause subscriptions sequentially - if one fails, throw error
+          for (const order of orders) {
+              if (!order.subscriptionId) {
+                  console.log(`Order ${order._id} has no subscription ID`);
+                  results.push({ orderId: order._id, success: false, error: 'No subscription ID' });
+                  failCount++;
+                  continue;
+              }
 
-        console.log(`Paused ${successCount} subscriptions, ${failCount} failed`);
+              try {
+                  await stripe.subscriptions.update(order.subscriptionId, {
+                      pause_collection: {
+                          behavior: 'void'
+                      }
+                  });
 
-        return res.status(200).json({
-            message: "User deleted successfully",
-            subscriptionsPaused: successCount,
-            subscriptionsFailed: failCount,
-            details: results
-        });
+                  results.push({ orderId: order._id, subscriptionId: order.subscriptionId, success: true });
+                  successCount++;
+                  console.log(`Paused subscription ${order.subscriptionId}`);
 
-    } catch (e) {
-        console.error('Delete user error:', e.message);
-        return res.status(500).json({
-            error: "Error while deleting user",
-            details: e.message
-        });
-    }
+              } catch (error) {
+                  console.error(`Failed to pause subscription ${order.subscriptionId}:`, error.message);
+                  // Throw error to stop the deletion process
+                  throw new Error(`Failed to pause subscription ${order.subscriptionId}: ${error.message}`);
+              }
+          }
+
+          console.log(`Paused ${successCount} subscriptions, ${failCount} failed`);
+      }
+
+      // Step 4: Delete all related data in parallel (only after subscriptions are paused)
+      const [requestsDeleted, supportMessagesDeleted, ordersDeleted, messagesDeleted] = await Promise.all([
+          requestModel.deleteMany({ user: id }),
+          SupportMessage.deleteMany({ user: id }),
+          orderModel.deleteMany({ user: id }),
+          messageModel.deleteMany({ user: id })
+      ]);
+
+      console.log(`Deleted: ${requestsDeleted.deletedCount} requests, ${supportMessagesDeleted.deletedCount} support messages, ${ordersDeleted.deletedCount} orders, ${messagesDeleted.deletedCount} messages`);
+
+      // Step 5: Finally delete the user
+      await userModel.findByIdAndDelete(id);
+      console.log(`Deleted user ${id}`);
+
+      return res.status(200).json({
+          message: "User deleted successfully",
+          deletedCounts: {
+              requests: requestsDeleted.deletedCount,
+              supportMessages: supportMessagesDeleted.deletedCount,
+              orders: ordersDeleted.deletedCount,
+              messages: messagesDeleted.deletedCount
+          },
+          subscriptionsPaused: successCount,
+          subscriptionsFailed: failCount,
+          details: results
+      });
+
+  } catch (e) {
+      console.error('Delete user error:', e.message);
+      return res.status(500).json({
+          error: "Error while deleting user",
+          details: e.message,
+          note: "Deletion stopped at first failure. Some operations may have completed before the error."
+      });
+  }
 };
+
 
 
 
@@ -338,101 +626,86 @@ module.exports.deleteUser = async (req, res) => {
 
 
 module.exports.deleteVendor = async (req, res) => {
-    const { id } = req.params;
-    const stripe = require('stripe')(process.env.STRIPE_LIVE);
-    
-    try {
-    
-        const vendorfound = await vendor.findOne({ _id: id });
-        
-        if (!vendorfound) {
-            return res.status(404).json({
-                error: "Vendor not found"
-            });
-        }
-
-       
-        await vendor.findByIdAndUpdate(id, {
-            $set: {
-                email: vendorfound.email + '_deletedVendor_' + id,
-                status:'inactive'
-            }
-        });
-
+  const { id } = req.params;
+  const stripe = require('stripe')(process.env.STRIPE_LIVE);
+  
+  try {
+      // Step 1: Verify vendor exists
+      const vendorfound = await vendor.findOne({ _id: id });
       
-        let orders = await orderModel.find({
-            user: id, 
-            status: { $in: ['processing'] }
-        });
+      if (!vendorfound) {
+          return res.status(404).json({
+              error: "Vendor not found"
+          });
+      }
 
-     
-        if (orders.length === 0) {
-            return res.status(200).json({
-                message: "Vendor deleted successfully"
-            });
-        }
+      // Step 2: Delete all related data in parallel (they don't depend on each other)
+      const [listingsDeleted, requestsDeleted, supportMessagesDeleted, messagesDeleted] = await Promise.all([
+          listingModel.deleteMany({ vendor: id }),
+          requestModel.deleteMany({ vendor: id }),
+          SupportMessage.deleteMany({ vendor: id }),
+          messageModel.deleteMany({ vendor: id })
+      ]);
 
-   
-        const pausePromises = orders.map(async (order) => {
-            try {
-                if (!order.subscriptionId) {
-                    console.log(`Order ${order._id} has no subscription ID`);
-                    return { orderId: order._id, success: false, error: 'No subscription ID' };
-                }
+      console.log(`Deleted: ${listingsDeleted.deletedCount} listings, ${requestsDeleted.deletedCount} requests, ${supportMessagesDeleted.deletedCount} support messages, ${messagesDeleted.deletedCount} messages`);
 
-               
-                try {
-                    await stripe.subscriptions.update(order.subscriptionId, {
-                        pause_collection: {
-                            behavior: 'void'
-                        }
-                    });
-                } catch (stripeError) {
-                    console.error(`Failed to pause Stripe subscription ${order.subscriptionId}:`, stripeError.message);
-                }
+      // Step 3: Handle orders and subscriptions (must be sequential)
+      const orders = await orderModel.find({ user: id });
+      
+      let successCount = 0;
+      let failCount = 0;
+      let results = [];
 
-              
-                await orderModel.findByIdAndUpdate(order._id, {
-                    status: 'paused',
-                    pausedAt: new Date()
-                });
+      if (orders.length > 0) {
+          // Pause subscriptions sequentially - if one fails, throw error
+          for (const order of orders) {
+              if (!order.subscriptionId) {
+                  console.log(`Order ${order._id} has no subscription ID`);
+                  continue;
+              }
 
-                await listingModel.updateMany({vendor:id},{
-                    $set:{
-                        status:"inactive"
-                    }
-                })
-                return { orderId: order._id, success: true };
-            } catch (error) {
-                console.error(`Error processing order ${order._id}:`, error.message);
-                return { orderId: order._id, success: false, error: error.message };
-            }
-        });
+              await stripe.subscriptions.update(order.subscriptionId, {
+                  pause_collection: {
+                      behavior: 'void'
+                  }
+              });
 
-     
-        const results = await Promise.all(pausePromises);
+              results.push({ orderId: order._id, subscriptionId: order.subscriptionId, success: true });
+              successCount++;
+              console.log(`Paused subscription ${order.subscriptionId}`);
+          }
 
-       
-        const successCount = results.filter(r => r.success).length;
-        const failCount = results.filter(r => !r.success).length;
+          // Step 4: Delete orders after pausing subscriptions
+          const ordersDeleted = await orderModel.deleteMany({ vendor: id });
+          console.log(`Deleted ${ordersDeleted.deletedCount} orders`);
+      }
 
-        console.log(`Paused ${successCount} subscriptions, ${failCount} failed`);
+      // Step 5: Finally delete the vendor
+      await vendor.findByIdAndDelete(id);
+      console.log(`Deleted vendor ${id}`);
 
-        return res.status(200).json({
-            message: "User deleted successfully",
-            subscriptionsPaused: successCount,
-            subscriptionsFailed: failCount,
-            details: results
-        });
+      return res.status(200).json({
+          message: "Vendor deleted successfully",
+          deletedCounts: {
+              listings: listingsDeleted.deletedCount,
+              requests: requestsDeleted.deletedCount,
+              supportMessages: supportMessagesDeleted.deletedCount,
+              messages: messagesDeleted.deletedCount,
+              orders: orders.length
+          },
+          subscriptionsPaused: successCount
+      });
 
-    } catch (e) {
-        console.error('Delete user error:', e.message);
-        return res.status(500).json({
-            error: "Error while deleting user",
-            details: e.message
-        });
-    }
+  } catch (e) {
+      console.error('Delete vendor error:', e.message);
+      return res.status(500).json({
+          error: "Error while deleting vendor",
+          details: e.message,
+          note: "Deletion stopped at first failure. Some operations may have completed before the error."
+      });
+  }
 };
+
 
 module.exports.updateProduct = async (req, res) => {
     let { ...data } = req.body;
