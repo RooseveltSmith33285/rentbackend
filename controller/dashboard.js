@@ -1,3 +1,4 @@
+const messageModel = require('../models/messages');
 const ordersModel = require('../models/order');
 const requestModel = require('../models/request');
 const userModel = require('../models/user')
@@ -140,6 +141,10 @@ setInterval(() => {
         }));
 
       const renter = await userModel.findById(id).select('name email credit');
+      const messagesLength = await messageModel.countDocuments({
+        user: id,
+        seenByUser: false
+      });
 
       return res.status(200).json({
         success: true,
@@ -149,7 +154,7 @@ setInterval(() => {
           pendingApprovals,
           recentReceipts,
           renter,
-          unreadMessages: 0,
+          unreadMessages:  messagesLength,
           completedOrders,
           user
         }

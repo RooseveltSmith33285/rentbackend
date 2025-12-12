@@ -824,17 +824,42 @@ return res.status(200).json({
       };
   
       
+
       const recentListings = await Listing.find({ vendor: vendorId })
-        .sort({ createdAt: -1 })
-        .limit(5)
-        .select('title category status pricing.rentPrice pricing.buyPrice engagement createdAt images');
+  .sort({ createdAt: -1 })
+  .limit(5)
+  .select('title category status pricing.rentPrice pricing.buyPrice engagement createdAt images');
+
+const recentListingsWithDelivery = await Promise.all(
+  recentListings.map(async (listing) => {
+    const request = await requestModel.findOne({ 
+      listing: listing._id 
+    }).select('deliveryType');
+    
+    return {
+      ...listing.toObject(),
+      deliveryType: request?.deliveryType || null
+    };
+  })
+);
+const topListings = await Listing.find({ vendor: vendorId })
+.sort({ 'engagement.views': -1 })
+.limit(5)
+.select('title category engagement.views engagement.likes engagement.inquiries');
+
+
+const topListingsWithDelivery = await Promise.all(
+topListings.map(async (listing) => {
+  const request = await requestModel.findOne({ 
+    listing: listing._id 
+  }).select('deliveryType');
   
-     
-      const topListings = await Listing.find({ vendor: vendorId })
-        .sort({ 'engagement.views': -1 })
-        .limit(5)
-        .select('title category engagement.views engagement.likes engagement.inquiries');
-  
+  return {
+    ...listing.toObject(),
+    deliveryType: request?.deliveryType || null
+  };
+})
+);
       
       const recentPosts = await CommunityPost.find({ 
         vendor: vendorId,
@@ -854,7 +879,7 @@ return res.status(200).json({
         updatedAt: { $gte: thirtyDaysAgo }
       }).select('status updatedAt');
   
-   
+   console.log(recentListingsWithDelivery)
       const dashboardData = {
         success: true,
         data: {
@@ -877,8 +902,8 @@ return res.status(200).json({
             communityPosts: postStats,
             vendorStats: vendor.stats
           },
-          recentListings,
-          topListings,
+          recentListings: recentListingsWithDelivery,  
+          topListings: topListingsWithDelivery,  
           recentPosts,
           recentActivity: recentActivity.length,
           subscriptionStatus: {
