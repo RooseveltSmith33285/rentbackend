@@ -24,9 +24,7 @@ password:{
     type:String,
     required:true
 },
-paymentMethodToken:{
-    type:String
-},
+
 customerId:{
     type:String
 },

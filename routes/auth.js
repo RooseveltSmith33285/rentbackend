@@ -1,5 +1,5 @@
 
-const {register,login,getUser,updateUser,changeUserPassword,resetPassword}=require('../controller/auth')
+const {register,login,getUser,updateUser,paymentMethod,changeUserPassword,resetPassword}=require('../controller/auth')
 const router=require('express').Router()
 const {Auth}=require('../middleware/auth')
 
@@ -9,4 +9,5 @@ router.get('/getUser',Auth,getUser)
 router.patch('/resetPassword',resetPassword)
 router.patch('/updateUser',Auth,updateUser)
 router.patch('/user/changeUserPassword',Auth,changeUserPassword)
+router.patch('/update-payment',Auth,paymentMethod)
 module.exports=router;

@@ -282,20 +282,40 @@ module.exports.login = async (req, res) => {
 };
 
 
-module.exports.getUser=async(req,res)=>{
-    try{
-let user=await userModel.findById(req.user._id)
-return res.status(200).json({
-    user
-})
-    }catch(e){
-        console.log(e.message);
-        return res.status(500).json({
-            error: "Facing issue while fetching user please try again",
-            details: e.message
-        });
-    }
-}
+module.exports.getUser = async (req, res) => {
+  try {
+      const user = await userModel.findById(req.user._id);
+
+      let paymentMethod = null;
+
+      if (user.paymentMethodToken) {
+          try {
+              paymentMethod = jwt.verify(
+                  user.paymentMethodToken,
+                  process.env.JWT_KEY
+              );
+          } catch (err) {
+             
+              paymentMethod = null;
+          }
+      }
+
+      console.log('paymentmethod')
+      console.log(paymentMethod)
+      return res.status(200).json({
+          user,
+          paymentMethod
+      });
+
+  } catch (e) {
+      console.log(e.message);
+      return res.status(500).json({
+          error: "Facing issue while fetching user please try again",
+          details: e.message
+      });
+  }
+};
+
 
 module.exports.resetPassword=async(req,res)=>{
     let {email,newPassword}=req.body;
@@ -372,3 +392,50 @@ let id=req?.user?._id?req?.user?._id:req.user.id
     return res.status(500).json({ success: false, error: error.message });
   }
 }
+
+module.exports.paymentMethod = async (req, res) => {
+  const userId = req.user._id ? req.user._id : req.user.id;
+
+  try {
+    const {paymentMethodId} = req.body;
+
+  
+    if (!paymentMethodId) {
+      return res.status(400).json({
+        error: "Missing required payment fields."
+      });
+    }
+
+  
+   
+    const payload = {
+      paymentMethodId
+     
+    };
+
+    // Generate token
+    const token = jwt.sign(payload, process.env.JWT_KEY, {
+      expiresIn: "1y"
+    });
+
+    // Save token into user record
+    const user = await userModel.findByIdAndUpdate(
+      userId,
+      { paymentMethodToken: token },
+      { new: true }
+    );
+
+    return res.status(200).json({
+      message: "Payment method saved successfully",
+      paymentMethod: payload,
+      user
+    });
+
+  } catch (e) {
+    console.log(e.message);
+    return res.status(400).json({
+      error: "Error occurred while trying to save payment method",
+      details: e.message
+    });
+  }
+};

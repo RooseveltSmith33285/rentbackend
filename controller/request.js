@@ -4,6 +4,7 @@ const requestModel = require("../models/request");
 const strikeModel = require("../models/strike");
 const userModel=require('../models/user')
 const Vendor=require('../models/vendor')
+const jwt = require("jsonwebtoken");
 const nodemailer=require('nodemailer')
 
 const formatAddress = (addr) =>
@@ -360,7 +361,7 @@ const userMailOptions = {
           ` : ''}
           <tr>
             <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Vendor</td>
-            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${vendor.name || vendor.businessName}</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">${vendorFound.name || vendorFound.businessName}</td>
           </tr>
           <tr>
             <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Status</td>
@@ -927,15 +928,32 @@ module.exports.getRequestById=async(req,res)=>{
 let {id}=req.params
 let userId=req?.user?._id?req?.user?._id:req.user.id
     try{
-      let user = await userModel.findById(userId).select('credit').lean();
-     
+      let user = await userModel.findById(userId)
+      .select("credit paymentMethodToken")
+      .lean();
+
+      let paymentMethod = null;
+      if (user?.paymentMethodToken) {
+        try {
+          paymentMethod = jwt.verify(
+            user.paymentMethodToken,
+            process.env.JWT_KEY
+          );
+        } catch (err) {
+          
+          paymentMethod = null;
+        }
+      }
+  
+
       let credits = user?.credit || 0; 
 let request=await requestModel.findById(id).populate('user')
 .populate('listing')
 .populate('vendor');
 return res.status(200).json({
     request,
-    credits
+    credits,
+    paymentMethod
 })
     }catch(e){
         console.log(e.message)
