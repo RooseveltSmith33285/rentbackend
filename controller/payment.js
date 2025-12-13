@@ -2262,6 +2262,15 @@ module.exports.updatePaymentMethod = async(req, res) => {
           console.log('⚠️ No order or vendor found for subscription:', invoice.subscription);
           return;
         }
+
+        await orderModel.findByIdAndUpdate(order._id, {
+          $set: {
+            status: 'processing',
+            paymentStatus: 'paid',
+         
+          },
+         
+        });
         
         const vendor = order.vendor;
         
@@ -2404,6 +2413,12 @@ module.exports.updatePaymentMethod = async(req, res) => {
           return;
         }
         
+        await orderModel.findByIdAndUpdate(order._id, {
+          $set: {
+            status: 'PAST_DUE',
+            paymentStatus: 'failed'
+          }
+        });
         const vendor = order.vendor;
         
         const mailOptions = {
