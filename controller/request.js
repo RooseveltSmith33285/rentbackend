@@ -1118,7 +1118,7 @@ module.exports.approveOfferByUser = async(req, res) => {
     });
     
     
-    const PLATFORM_FEE_PERCENT = 15;
+    const PLATFORM_FEE_PERCENT = 20;
     const totalAmountCents = Math.round(totalPrice * 100);
     const platformFeeCents = Math.round(totalAmountCents * (PLATFORM_FEE_PERCENT / 100));
     const vendorPayoutCents = totalAmountCents - platformFeeCents;
