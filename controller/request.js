@@ -970,6 +970,7 @@ return res.status(200).json({
 
 module.exports.approveOfferByUser = async(req, res) => {
   let { id, totalPrice, paymentMethodId, newCredits, creditsUsed, totalBeforeCredits } = req.body;
+  const FIXED_WARRANTY_FEE = 15;
   try {
     const stripe = require('stripe')(process.env.STRIPE_LIVE);
     
@@ -995,6 +996,8 @@ module.exports.approveOfferByUser = async(req, res) => {
         email: request.user.email,
         name: request.user.name || request.user.username,
         metadata: { userId: request.user._id.toString() }
+      },{
+          idempotencyKey: `customer-${request.user._id.toString()}`
       });
       customerId = customer.id;
       
@@ -1021,9 +1024,13 @@ module.exports.approveOfferByUser = async(req, res) => {
       if (paymentMethod.customer !== customerId) {
         await stripe.paymentMethods.attach(paymentMethodId, {
           customer: customerId
+        },{
+          idempotencyKey: `attach-${paymentMethodId}-${customerId}`
         });
         await stripe.customers.update(customerId, {
           invoice_settings: { default_payment_method: paymentMethodId }
+        },{
+            idempotencyKey: `update-customer-pm-${customerId}-${paymentMethodId}`
         });
       }
     } catch (attachError) {
@@ -1035,6 +1042,11 @@ module.exports.approveOfferByUser = async(req, res) => {
     let deliveryFeeToCharge = 60;
     let serviceFeeToCharge = 12;
     let monthlyRentToCharge = request.listing.pricing.rentPrice;
+    let warrantyFeeToCharge = 0;
+
+    if (request.listing.powerType === 'Warranty') {
+      warrantyFeeToCharge = FIXED_WARRANTY_FEE;
+    }
 
     if (creditsApplied > 0) {
      
@@ -1058,6 +1070,14 @@ module.exports.approveOfferByUser = async(req, res) => {
         remainingCredits = 0;
       }
       
+      if (remainingCredits >= warrantyFeeToCharge) {
+        remainingCredits -= warrantyFeeToCharge;
+        warrantyFeeToCharge = 0;
+      } else {
+        warrantyFeeToCharge -= remainingCredits;
+        remainingCredits = 0;
+      }
+      
   
       if (remainingCredits > 0) {
         monthlyRentToCharge = Math.max(0, monthlyRentToCharge - remainingCredits);
@@ -1067,15 +1087,17 @@ module.exports.approveOfferByUser = async(req, res) => {
     console.log('💳 Charges after credits:', {
       deliveryFee: deliveryFeeToCharge,
       serviceFee: serviceFeeToCharge,
+      warrantyFee: warrantyFeeToCharge,
       monthlyRent: monthlyRentToCharge,
       creditsApplied: creditsApplied,
       totalToCharge: totalPrice
     });
-    
   
     const deliveryProduct = await stripe.products.create({
       name: 'Installation & Delivery Fee',
       description: 'One-time installation and delivery service fee'
+    },{
+       idempotencyKey: `service-product-${id}`
     });
     
     const serviceProduct = await stripe.products.create({
@@ -1091,6 +1113,8 @@ module.exports.approveOfferByUser = async(req, res) => {
         product: deliveryProduct.id,
         unit_amount: Math.round(deliveryFeeToCharge * 100),
         currency: 'usd',
+      },{
+     idempotencyKey: `delivery-price-${id}-${Math.round(deliveryFeeToCharge * 100)}`
       });
       addInvoiceItems.push({ price: deliveryPrice.id });
     }
@@ -1100,6 +1124,8 @@ module.exports.approveOfferByUser = async(req, res) => {
         product: serviceProduct.id,
         unit_amount: Math.round(serviceFeeToCharge * 100),
         currency: 'usd',
+      },{
+          idempotencyKey: `service-price-${id}-${Math.round(serviceFeeToCharge * 100)}`
       });
       addInvoiceItems.push({ price: servicePrice.id });
     }
@@ -1115,9 +1141,41 @@ module.exports.approveOfferByUser = async(req, res) => {
           requestId: id
         }
       }
+    },{
+   idempotencyKey: `rent-price-${id}-${Math.round(monthlyRentToCharge * 100)}`
     });
     
     
+    const subscriptionItems = [{ price: subscriptionPrice.id }];
+
+// Add warranty as recurring fee if listing has it
+if (request.listing.powerType === 'Warranty' && warrantyFeeToCharge > 0) {
+  const warrantyPrice = await stripe.prices.create({
+    unit_amount: Math.round(warrantyFeeToCharge * 100), // $15 = 1500 cents
+    currency: 'usd',
+    recurring: { interval: 'month' },
+    product_data: {
+      name: `Warranty Protection: ${request.listing.title}`,
+      metadata: {
+        listingId: request.listing._id.toString(),
+        requestId: id,
+        type: 'warranty',
+        warrantyFee: warrantyFeeToCharge.toString()
+      }
+    }
+  }, {
+   idempotencyKey: `warranty-price-${id}-${Math.round(warrantyFeeToCharge * 100)}`
+  });
+  
+  subscriptionItems.push({ price: warrantyPrice.id });
+  
+  console.log('Warranty added to subscription:', {
+    warrantyFee: warrantyFeeToCharge,
+    priceId: warrantyPrice.id
+  });
+}
+
+
     const PLATFORM_FEE_PERCENT = 20;
     const totalAmountCents = Math.round(totalPrice * 100);
     const platformFeeCents = Math.round(totalAmountCents * (PLATFORM_FEE_PERCENT / 100));
@@ -1154,8 +1212,12 @@ module.exports.approveOfferByUser = async(req, res) => {
         originalTotal: (totalBeforeCredits || totalPrice).toString(),
         platformFee: (platformFeeCents / 100).toString(),
         vendorPayout: (vendorPayoutCents / 100).toString(),
-        transferStatus: 'pending'
+        transferStatus: 'pending',
+        hasWarranty: (request.listing.powerType === 'Warranty').toString(), // NEW
+    warrantyFee: warrantyFeeToCharge.toString() 
       }
+    },{
+      idempotencyKey: `sub-${id}-${Date.now()}`
     });
     
     let paymentIntent = subscription.latest_invoice.payment_intent;
@@ -1166,6 +1228,8 @@ module.exports.approveOfferByUser = async(req, res) => {
     if (paymentIntent.status === 'requires_confirmation') {
       paymentIntent = await stripe.paymentIntents.confirm(paymentIntent.id, {
         payment_method: paymentMethodId
+      },{
+      idempotencyKey: `confirm-pi-${paymentIntent.id}`   
       });
     }
     

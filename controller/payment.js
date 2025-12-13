@@ -1354,15 +1354,21 @@
         console.log(`🔗 Attaching payment method ${paymentMethodId} to customer ${customerId}`);
         await stripe.paymentMethods.attach(paymentMethodId, {
           customer: customerId,
+        }, {
+          idempotencyKey: `attach-${paymentMethodId}-${customerId}`
         });
         return true;
       }
       
       if (paymentMethod.customer !== customerId) {
         console.log(`🔄 Reattaching payment method from ${paymentMethod.customer} to ${customerId}`);
-        await stripe.paymentMethods.detach(paymentMethodId);
+        await stripe.paymentMethods.detach(paymentMethodId, {}, {
+          idempotencyKey: `detach-${paymentMethodId}-${Date.now()}`
+        });
         await stripe.paymentMethods.attach(paymentMethodId, {
           customer: customerId,
+        }, {
+          idempotencyKey: `attach-${paymentMethodId}-${customerId}`
         });
         return true;
       }
@@ -1398,6 +1404,8 @@
         metadata: {
           userId: user._id.toString()
         }
+      }, {
+        idempotencyKey: `customer-${user._id.toString()}`
       });
   
       await userModel.findByIdAndUpdate(user._id, {
@@ -1530,7 +1538,9 @@ module.exports.updatePaymentMethod = async(req, res) => {
               
               if (oldPaymentMethodData.paymentMethodId) {
                   try {
-                      await stripe.paymentMethods.detach(oldPaymentMethodData.paymentMethodId);
+                    await stripe.paymentMethods.detach(oldPaymentMethodData.paymentMethodId, {}, {
+                      idempotencyKey: `detach-old-${oldPaymentMethodData.paymentMethodId}-${Date.now()}`
+                    });
                       console.log(`🗑️ Detached old payment method: ${oldPaymentMethodData.paymentMethodId}`);
                   } catch (detachError) {
                       console.log(`⚠️ Could not detach old payment method: ${detachError.message}`);
@@ -1592,8 +1602,9 @@ module.exports.updatePaymentMethod = async(req, res) => {
         
           let orders = await orderModel.find({
               
-              status: { $in: ['active', 'pending'] }
+              status: { $in: ['confirmed'] }
           });
+          
           orders=orders?.filter(u=>u?.user?.toString()==req?.user?._id?.toString())
 
 
@@ -1613,12 +1624,15 @@ module.exports.updatePaymentMethod = async(req, res) => {
                   }
 
                   const subscription = await stripe.subscriptions.update(
-                      order.subscriptionId,
-                      {
-                          pause_collection: {
-                              behavior: 'void', 
-                          },
-                      }
+                    order.subscriptionId,
+                    {
+                      pause_collection: {
+                        behavior: 'void', 
+                      },
+                    },
+                    {
+                      idempotencyKey: `pause-${order.subscriptionId}-${Date.now()}`
+                    }
                   );
 
               
@@ -1705,15 +1719,18 @@ module.exports.updatePaymentMethod = async(req, res) => {
                   }
 
                   const subscription = await stripe.subscriptions.update(
-                      order.subscriptionId,
-                      {
-                          pause_collection: '',
-                      }
+                    order.subscriptionId,
+                    {
+                      pause_collection: '',
+                    },
+                    {
+                      idempotencyKey: `resume-${order.subscriptionId}-${Date.now()}`
+                    }
                   );
 
                   
                   await orderModel.findByIdAndUpdate(order._id, {
-                      status: 'active',
+                      status: 'confirmed',
                       resumedAt: new Date(),
                       $unset: { pausedAt: 1 } 
                   });
@@ -1792,7 +1809,11 @@ module.exports.updatePaymentMethod = async(req, res) => {
     
           await handleAccountUpdated(event.data.object, stripe);
           break;
-        
+
+          case 'customer.subscription.deleted':
+            await handleSubscriptionDeleted(event.data.object, stripe);
+            break;
+
         case 'account.external_account.created':
           await handleExternalAccountCreated(event.data.object, stripe);
           break;
@@ -1830,6 +1851,24 @@ module.exports.updatePaymentMethod = async(req, res) => {
     }
   };
 
+
+
+  async function handleSubscriptionDeleted(subscription, stripe) {
+    console.log('🗑️ Subscription deleted:', subscription.id);
+    
+    const order = await orderModel.findOne({ subscriptionId: subscription.id });
+    
+    if (order) {
+      await orderModel.findByIdAndUpdate(order._id, {
+        $set: {
+          status: 'CANCELLED',
+          cancelledAt: new Date()
+        }
+      });
+      
+      console.log(`❌ Order ${order._id} marked as CANCELLED`);
+    }
+  }
 
   // Updated handleAccountUpdated function - recognizes when banking is complete
 
@@ -2250,9 +2289,6 @@ module.exports.updatePaymentMethod = async(req, res) => {
       console.log('💰 Subscription payment succeeded:', invoice.id);
       
       try {
-        // Get subscription details
-
-        // Find the order/request associated with this subscription
         const order = await orderModel.findOne({ subscriptionId: invoice.subscription })
           .populate('vendor')
           .populate('user')
@@ -2262,31 +2298,172 @@ module.exports.updatePaymentMethod = async(req, res) => {
           console.log('⚠️ No order or vendor found for subscription:', invoice.subscription);
           return;
         }
-
+    
+        const vendor = order.vendor;
+        const isRecurringPayment = invoice.billing_reason === 'subscription_cycle';
+        
+        console.log('📋 Payment info:', {
+          billingReason: invoice.billing_reason,
+          isRecurring: isRecurringPayment,
+          transferStatus: order.transferStatus
+        });
+    
+        // ============================================
+        // AUTO-RELEASE FOR RECURRING PAYMENTS (Month 2+)
+        // ============================================
+        if (isRecurringPayment && order.transferStatus === 'completed') {
+          console.log('🔄 Recurring payment - auto-releasing to vendor');
+          
+          const invoiceTotalCents = invoice.amount_paid;
+          const platformFeeCents = Math.round(invoiceTotalCents * 0.20);
+          const vendorPayoutCents = invoiceTotalCents - platformFeeCents;
+          
+          console.log('💵 Split:', {
+            total: invoiceTotalCents / 100,
+            platformFee: platformFeeCents / 100,
+            vendorPayout: vendorPayoutCents / 100
+          });
+          
+          try {
+            const transfer = await stripe.transfers.create({
+              amount: vendorPayoutCents,
+              currency: 'usd',
+              destination: vendor.stripe_account_id,
+              description: `Recurring rental - ${order.listing?.title || 'Rental'}`,
+              metadata: {
+                orderId: order._id.toString(),
+                invoiceId: invoice.id,
+                subscriptionId: invoice.subscription,
+                payment_type: 'recurring',
+                period_start: invoice.period_start,
+                period_end: invoice.period_end
+              }
+            }, {
+              idempotencyKey: `transfer-${order._id.toString()}-${invoice.id}`
+            });
+            
+            console.log('✅ Auto-transfer successful:', transfer.id);
+            
+            await orderModel.findByIdAndUpdate(order._id, {
+              $set: {
+                status: 'confirmed',
+                paymentStatus: 'paid'
+              }
+            });
+            
+            // Send email about successful transfer
+            const transporter = nodemailer.createTransporter({
+              service: 'gmail',
+              auth: {
+                user: 'rentsimple159@gmail.com', 
+                pass: 'upqbbmeobtztqxyg' 
+              }
+            });
+            
+            await transporter.sendMail({
+              from: 'orders@enrichifydata.com',
+              to: vendor.email,
+              subject: 'Monthly Rental Payment Released - RentSimple',
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <div style="background-color: #28a745; padding: 30px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0;">💰 Payment Released!</h1>
+                    <p style="color: #d4edda; margin-top: 10px;">Recurring rental payment automatically transferred</p>
+                  </div>
+                  <div style="padding: 30px;">
+                    <p>Hello ${vendor.name || vendor.username},</p>
+                    <p>Your recurring rental payment has been automatically released to your account.</p>
+                    <div style="background-color: #d4edda; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
+                      <h2 style="color: #28a745; margin: 0; font-size: 36px;">$${(vendorPayoutCents / 100).toFixed(2)}</h2>
+                      <p style="margin: 5px 0 0 0; color: #155724; font-size: 14px;">Transferred to your bank account</p>
+                    </div>
+                    <table style="width: 100%; margin: 20px 0; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600;">Transfer ID:</td>
+                        <td style="padding: 12px; border: 1px solid #dee2e6; font-family: monospace; font-size: 12px;">${transfer.id}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600;">Product:</td>
+                        <td style="padding: 12px; border: 1px solid #dee2e6;">${order.listing?.title || 'Rental'}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600;">Customer:</td>
+                        <td style="padding: 12px; border: 1px solid #dee2e6;">${order.user?.name || order.user?.email || 'N/A'}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600;">Billing Period:</td>
+                        <td style="padding: 12px; border: 1px solid #dee2e6;">
+                          ${new Date(invoice.period_start * 1000).toLocaleDateString()} - ${new Date(invoice.period_end * 1000).toLocaleDateString()}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600;">Total Collected:</td>
+                        <td style="padding: 12px; border: 1px solid #dee2e6;">$${(invoiceTotalCents / 100).toFixed(2)}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600;">Platform Fee (20%):</td>
+                        <td style="padding: 12px; border: 1px solid #dee2e6; color: #dc3545;">-$${(platformFeeCents / 100).toFixed(2)}</td>
+                      </tr>
+                      <tr style="border-top: 2px solid #28a745;">
+                        <td style="padding: 12px; background-color: #e7f3f2; font-weight: 700;">Your Payout:</td>
+                        <td style="padding: 12px; background-color: #e7f3f2; color: #28a745; font-weight: 700; font-size: 18px;">$${(vendorPayoutCents / 100).toFixed(2)}</td>
+                      </tr>
+                    </table>
+                    <div style="background-color: #d1ecf1; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                      <p style="margin: 0; font-size: 14px; color: #0c5460;">
+                        <strong>💸 Automatic Transfers:</strong> Your monthly rental payments will continue to be automatically transferred to your bank account within minutes of collection.
+                      </p>
+                    </div>
+                    <div style="background-color: #fff3cd; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                      <p style="margin: 0; font-size: 14px; color: #856404;">
+                        <strong>⏱️ Arrival Time:</strong> Funds typically arrive in your bank account within 2-7 business days.
+                      </p>
+                    </div>
+                    <div style="text-align: center; margin-top: 30px;">
+                      <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/vendordashboard" 
+                        style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600;">
+                        View Dashboard
+                      </a>
+                    </div>
+                  </div>
+                  <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+                    <p style="margin: 0; color: #ecf0f1; font-size: 12px;">© 2025 RentSimple. All rights reserved.</p>
+                  </div>
+                </div>
+              `
+            });
+            
+            console.log('📧 Recurring payment email sent');
+            return;
+            
+          } catch (transferError) {
+            console.error('❌ Auto-transfer failed:', transferError);
+            // Transfer failed - order stays in current status, admin can manually release
+          }
+        }
+        
+        // ============================================
+        // FIRST PAYMENT - Just update status
+        // ============================================
         await orderModel.findByIdAndUpdate(order._id, {
           $set: {
             status: 'processing',
-            paymentStatus: 'paid',
-         
-          },
-         
+            paymentStatus: 'paid'
+          }
         });
         
-        const vendor = order.vendor;
-        
+        // Send original email for first payment
         const mailOptions = {
           from: 'orders@enrichifydata.com',
           to: vendor.email,
           subject: 'Monthly Rental Payment Received - RentSimple',
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-              <!-- Header -->
               <div style="background-color: #28a745; padding: 30px; text-align: center;">
                 <h1 style="color: #ffffff; margin: 0; font-size: 28px;">💰 Payment Received!</h1>
                 <p style="color: #d4edda; margin-top: 10px; font-size: 16px;">Monthly rental payment processed successfully</p>
               </div>
               
-              <!-- Payment Time -->
               <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
                 <p style="margin: 0; color: #7f8c8d; font-size: 14px;">Payment Date</p>
                 <h2 style="margin: 5px 0 0 0; color: #2c3e50; font-size: 20px;">${new Date(invoice.created * 1000).toLocaleString('en-US', { 
@@ -2295,7 +2472,6 @@ module.exports.updatePaymentMethod = async(req, res) => {
                 })}</h2>
               </div>
     
-              <!-- Payment Amount -->
               <div style="padding: 30px;">
                 <div style="background-color: #d4edda; border-left: 4px solid #28a745; padding: 20px; border-radius: 4px; text-align: center; margin-bottom: 30px;">
                   <p style="margin: 0; color: #155724; font-size: 16px; font-weight: 600;">Payment Amount</p>
@@ -2311,10 +2487,6 @@ module.exports.updatePaymentMethod = async(req, res) => {
                     <td style="padding: 12px; background-color: #f8f9fa; width: 40%; font-weight: 600; color: #2c3e50;">Invoice ID</td>
                     <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; font-family: monospace;">${invoice.id}</td>
                   </tr>
-                  <tr>
-                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Subscription ID</td>
-                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057; font-family: monospace;">${invoice.subscription}</td>
-                  </tr>
                   ${order.listing ? `
                   <tr>
                     <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Product</td>
@@ -2328,62 +2500,27 @@ module.exports.updatePaymentMethod = async(req, res) => {
                   </tr>
                   ` : ''}
                   <tr>
-                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Payment Status</td>
-                    <td style="padding: 12px; border: 1px solid #dee2e6;">
-                      <span style="background-color: #28a745; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">PAID</span>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Period</td>
-                    <td style="padding: 12px; border: 1px solid #dee2e6; color: #495057;">
-                      ${new Date(invoice.period_start * 1000).toLocaleDateString()} - ${new Date(invoice.period_end * 1000).toLocaleDateString()}
-                    </td>
-                  </tr>
-                  <tr>
                     <td style="padding: 12px; background-color: #f8f9fa; font-weight: 600; color: #2c3e50;">Amount Paid</td>
                     <td style="padding: 12px; border: 1px solid #dee2e6; color: #28a745; font-weight: 700; font-size: 18px;">$${(invoice.amount_paid / 100).toFixed(2)}</td>
                   </tr>
                 </table>
     
-                <!-- Payout Info -->
                 <div style="margin-top: 30px; padding: 20px; background-color: #d1ecf1; border-left: 4px solid #17a2b8; border-radius: 4px;">
                   <h4 style="margin: 0 0 10px 0; color: #0c5460; font-size: 16px;">💸 Payout Information</h4>
                   <p style="margin: 0; color: #0c5460; font-size: 14px; line-height: 1.6;">
-                    Your payout will be processed automatically and transferred to your bank account within 2-7 business days.
-                  </p>
-                </div>
-    
-                <!-- Call to Action Button -->
-                <div style="text-align: center; margin-top: 30px;">
-                  <a href="${process.env.FRONTEND_URL || 'https://rentsimpledeals.com'}/vendordashboard" 
-                    style="display: inline-block; background-color: #024a47; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
-                    View Order Details
-                  </a>
-                </div>
-    
-                <!-- Support Info -->
-                <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
-                  <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">Need Help?</h4>
-                  <p style="margin: 0; color: #495057; font-size: 14px; line-height: 1.6;">
-                    If you have any questions about this payment or need assistance, please contact our support team.
+                    Your payout will be processed and transferred to your bank account within 2-7 business days after delivery confirmation.
                   </p>
                 </div>
               </div>
     
-              <!-- Footer -->
               <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
-                <p style="margin: 0; color: #ecf0f1; font-size: 12px;">
-                  This is an automated notification from RentSimple.
-                </p>
-                <p style="margin: 10px 0 0 0; color: #95a5a6; font-size: 11px;">
-                  © 2025 RentSimple. All rights reserved.
-                </p>
+                <p style="margin: 0; color: #ecf0f1; font-size: 12px;">© 2025 RentSimple. All rights reserved.</p>
               </div>
             </div>
           `
         };
     
-        const transporter = nodemailer.createTransport({
+        const transporter = nodemailer.createTransporter({
           service: 'gmail',
           auth: {
             user: 'rentsimple159@gmail.com', 
@@ -2392,12 +2529,13 @@ module.exports.updatePaymentMethod = async(req, res) => {
         });
     
         await transporter.sendMail(mailOptions);
-        console.log('📧 Subscription payment success email sent to:', vendor.email);
+        console.log('📧 Payment notification sent');
         
       } catch (error) {
         console.error('Error handling subscription payment succeeded:', error);
       }
     }
+
     async function handleSubscriptionPaymentFailed(invoice, stripe) {
       console.log('❌ Subscription payment failed:', invoice.id);
       
